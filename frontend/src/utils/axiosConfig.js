@@ -3,6 +3,10 @@ import axios from 'axios';
 // Create axios instance
 const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_BACKEND_URL,
+  withCredentials: true,
+   headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
 // Request interceptor to add token to every request
