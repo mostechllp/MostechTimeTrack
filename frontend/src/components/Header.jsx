@@ -10,6 +10,7 @@ import {
   XIcon,
 } from "@heroicons/react/outline";
 import ConfirmModal from "./resuable/ConfirmModal";
+import logo from "../assets/logo.png";
 
 const Header = () => {
   const { user, logout } = useAuth();
@@ -36,14 +37,10 @@ const Header = () => {
   const Logo = () => (
     <div className="flex items-center">
       <img
-        src="/src/assets/logo.png"
+        src={logo}
         alt="Mostech Business Solutions"
         className="h-10 w-auto md:h-12"
       />
-      {/* If you want text alongside logo, uncomment below */}
-      {/* <span className="ml-2 text-xl font-bold text-white hidden sm:inline-block">
-        Mostech
-      </span> */}
     </div>
   );
 
