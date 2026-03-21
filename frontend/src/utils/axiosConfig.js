@@ -1,8 +1,23 @@
 import axios from 'axios';
 
+// Determine the API URL based on environment
+const getApiUrl = () => {
+  // Production (Vercel)
+  if (import.meta.env.PROD) {
+    return import.meta.env.VITE_BACKEND_URL || 'https://mos-attendance.onrender.com/api';
+  }
+  
+  // Development (localhost)
+  return import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000/api';
+};
+
+const API_URL = getApiUrl();
+
+console.log('API URL:', API_URL); 
+
 // Create axios instance
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_BACKEND_URL,
+  baseURL: API_URL,
   withCredentials: true,
    headers: {
     'Content-Type': 'application/json',
