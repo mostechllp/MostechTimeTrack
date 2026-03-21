@@ -2,12 +2,16 @@ import axios from 'axios';
 
 // Determine the API URL based on environment
 const getApiUrl = () => {
-  // Production (Vercel)
-  if (import.meta.env.PROD) {
-    return import.meta.env.VITE_BACKEND_URL || 'https://mos-attendance.onrender.com/api';
+  // Check if we're on a deployed site (not localhost)
+  const isDeployed = window.location.hostname !== 'localhost' && 
+                     !window.location.hostname.includes('127.0.0.1');
+  
+  if (isDeployed) {
+    // Always use Render backend when deployed
+    return 'https://mos-attendance.onrender.com/api';
   }
   
-  // Development (localhost)
+  // Local development
   return import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000/api';
 };
 
