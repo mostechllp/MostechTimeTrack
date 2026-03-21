@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import axiosInstance from "../utils/axiosConfig";
 
 const AuthContext = createContext();
 
@@ -37,8 +38,8 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const { data } = await axios.post(
-        "http://localhost:5000/api/auth/login",
+      const { data } = await axiosInstance.post(
+        "/auth/login",
         {
           email,
           password,
