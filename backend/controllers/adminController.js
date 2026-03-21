@@ -57,7 +57,6 @@ const createStaff = async (req, res) => {
           <p><strong>Temporary Password:</strong> ${tempPassword}</p>
           <p><strong>Joining Date:</strong> ${user.joiningDate.toLocaleDateString()}</p>
           <p>Please login and change your password immediately.</p>
-          <a href="${process.env.FRONTEND_URL}/login">Login Here</a>
         `
       });
       

@@ -81,20 +81,22 @@ const Header = () => {
 
               {/* Desktop User Section */}
               <div className="hidden md:flex items-center space-x-4">
-                <div className="flex items-center space-x-2 px-3 py-1.5 bg-white/10 rounded-full backdrop-blur-sm">
-                  {user.profileImage ? (
-                    <img
-                      src={user.profileImage}
-                      alt="Profile"
-                      className="h-6 w-6 rounded-full object-cover"
-                    />
-                  ) : (
-                    <UserCircleIcon className="h-6 w-6 text-blue-500" />
-                  )}
-                  <span className="text-sm font-medium text-black">
-                    {user.email}
-                  </span>
-                </div>
+                {user.role !== "admin" && (
+                  <div className="flex items-center space-x-2 px-3 py-1.5 bg-white/10 rounded-full backdrop-blur-sm">
+                    {user.profileImage ? (
+                      <img
+                        src={user.profileImage}
+                        alt="Profile"
+                        className="h-6 w-6 rounded-full object-cover"
+                      />
+                    ) : (
+                      <UserCircleIcon className="h-6 w-6 text-blue-500" />
+                    )}
+                    <span className="text-sm font-medium text-black">
+                      {user.email}
+                    </span>
+                  </div>
+                )}
                 <button
                   onClick={logoutConfirm}
                   className="flex items-center space-x-2 px-4 py-1.5 bg-red-600/20 hover:bg-red-600/30 text-red-500 rounded-full transition-all duration-200 border border-red-400/30 hover:border-red-400/50"
