@@ -1,21 +1,14 @@
 import axios from 'axios';
 
-// Determine the API URL based on environment
-const getApiUrl = () => {
-  // Check if we're on a deployed site (not localhost)
-  const isDeployed = window.location.hostname !== 'localhost' && 
-                     !window.location.hostname.includes('127.0.0.1');
-  
-  if (isDeployed) {
-    // Always use Render backend when deployed
-    return 'https://mos-attendance.onrender.com/api';
-  }
-  
-  // Local development
-  return import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000/api';
-};
+const isProduction = window.location.hostname !== 'localhost' && 
+                     window.location.hostname !== '127.0.0.1';
 
-const API_URL = getApiUrl();
+const API_URL = isProduction 
+  ? 'https://mos-attendance.onrender.com/api' 
+  : (import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000/api');
+
+console.log('Environment:', isProduction ? 'Production' : 'Development');
+console.log('API URL:', API_URL);
 
 console.log('API URL:', API_URL); 
 
