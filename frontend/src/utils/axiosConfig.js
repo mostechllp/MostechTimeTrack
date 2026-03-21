@@ -1,20 +1,23 @@
 import axios from 'axios';
 
-const isProduction = window.location.hostname !== 'localhost' && 
-                     window.location.hostname !== '127.0.0.1';
+// Determine the API URL based on environment
+const getApiUrl = () => {
+  // Production (Vercel)
+  if (import.meta.env.PROD) {
+    return import.meta.env.VITE_BACKEND_URL || 'https://your-backend.onrender.com/api';
+  }
+  
+  // Development (localhost)
+  return import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000/api';
+};
 
-const API_URL = isProduction 
-  ? 'https://mos-attendance.onrender.com/api' 
-  : (import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000/api');
+const API_URL = getApiUrl();
 
-console.log('Environment:', isProduction ? 'Production' : 'Development');
-console.log('API URL:', API_URL);
-
-console.log('API URL:', API_URL); 
+console.log('API URL:', API_URL); // This will help debug
 
 // Create axios instance
 const axiosInstance = axios.create({
-  baseURL: API_URL,
+  baseURL: import.meta.env.VITE_BACKEND_URL,
   withCredentials: true,
    headers: {
     'Content-Type': 'application/json',
