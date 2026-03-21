@@ -6,8 +6,6 @@ const bcrypt = require('bcryptjs');
 
 // @desc    Create staff user
 // @route   POST /api/admin/create-staff
-// @desc    Create staff user
-// @route   POST /api/admin/create-staff
 const createStaff = async (req, res) => {
   try {
     const { email, firstName, lastName, joiningDate } = req.body;
@@ -67,7 +65,7 @@ const createStaff = async (req, res) => {
       
     } catch (emailError) {
       console.error('Email sending failed:', emailError);
-      // Don't throw here - we still want to return success for user creation
+      // Don't throw here - still want to return success for user creation
     }
 
     // Return success response
@@ -101,6 +99,7 @@ const createStaff = async (req, res) => {
     });
   }
 };
+
 // @desc    Get all staff
 // @route   GET /api/admin/staff
 const getAllStaff = async (req, res) => {
@@ -112,8 +111,6 @@ const getAllStaff = async (req, res) => {
   }
 };
 
-// @desc    Get monthly attendance report (using aggregation)
-// @route   GET /api/admin/reports/monthly
 // @desc    Get monthly attendance report
 // @route   GET /api/admin/reports/monthly
 const getMonthlyReport = async (req, res) => {
@@ -126,11 +123,6 @@ const getMonthlyReport = async (req, res) => {
     // Create date range
     const startDate = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
     const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
-
-    console.log('Fetching report for:', { month, year, staffId });
-    console.log('Current time:', now.toLocaleString());
-    console.log('Current hour:', currentHour);
-    console.log('Current day:', currentDay);
 
     // Build query
     const query = {
@@ -173,13 +165,7 @@ const getMonthlyReport = async (req, res) => {
         
         if (!isDayComplete) {
           // Day is not complete - mark as "incomplete" or filter out
-          // Option 1: Filter out completely (recommended)
           return null;
-          
-          // Option 2: Mark as incomplete but still show with note
-          // recordCopy.status = 'in-progress';
-          // recordCopy.totalWorkedHours = 'In Progress';
-          // return recordCopy;
         }
         
         return record;
@@ -202,7 +188,6 @@ const getMonthlyReport = async (req, res) => {
       }
     });
 
-    console.log(`Returning ${uniqueRecords.length} completed day records`);
     res.json(uniqueRecords);
     
   } catch (error) {
@@ -262,10 +247,6 @@ const updateLeaveStatus = async (req, res) => {
       leave.rejectionReason = rejectionReason;
     }
     await leave.save();
-
-    // If rejected, we might want to keep the image for records
-    // If approved, we keep it
-    // You can add logic here to delete rejected images after some time
 
     // Send email notification
     const emailSubject = status === 'approved' 

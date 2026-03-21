@@ -25,7 +25,7 @@ const Profile = () => {
   });
 
   const getImageUrl = () => {
-    // If we have a preview (new selected file), use that
+    // If have a preview, use that
     if (previewUrl) return previewUrl;
 
     // If user has a profile image, use it

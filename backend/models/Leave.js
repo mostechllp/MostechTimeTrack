@@ -9,8 +9,8 @@ const leaveSchema = new mongoose.Schema({
   leaveId: {
     type: String,
     required: true,
-    unique: true, // Ensure unique IDs
-    index: true // For faster searching
+    unique: true, 
+    index: true 
   },
   date: {
     type: Date,

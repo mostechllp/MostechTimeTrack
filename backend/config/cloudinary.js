@@ -25,7 +25,7 @@ const leaveStorage = new CloudinaryStorage({
   }
 });
 
-// Configure storage for profile images (if you want to use Cloudinary for profiles too)
+// Configure storage for profile images
 const profileStorage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {

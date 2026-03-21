@@ -37,7 +37,6 @@ const punchOut = async (req, res) => {
     const endOfDay = new Date(now);
     endOfDay.setHours(23, 59, 59, 999);
 
-    console.log("Punch out at:", now.toLocaleString());
 
     const attendance = await Attendance.findOne({
       userId: req.user._id,
@@ -54,7 +53,7 @@ const punchOut = async (req, res) => {
     // Set punch out time
     if (session === "morningSession") {
       attendance.morningSession.punchOut = now;
-      // We'll determine isPresent based on full session completion
+      // determine isPresent based on full session completion
     } else {
       attendance.afternoonSession.punchOut = now;
     }
@@ -100,15 +99,6 @@ const punchOut = async (req, res) => {
       }
     }
 
-    console.log("Attendance calculation:", {
-      morningDuration: morningDuration.toFixed(2) + " hrs",
-      afternoonDuration: afternoonDuration.toFixed(2) + " hrs",
-      totalWorked: attendance.totalWorkedHours.toFixed(2) + " hrs",
-      isMorningComplete,
-      isAfternoonComplete,
-      status: attendance.status
-    });
-
     await attendance.save();
     
     // Calculate current work duration
@@ -122,7 +112,6 @@ const punchOut = async (req, res) => {
         isOnBreak: false,
         activeSession: null,
         serverTime: new Date().toISOString(),
-        // Add helpful display info
         displayInfo: {
           morningDuration: morningDuration.toFixed(2),
           afternoonDuration: afternoonDuration.toFixed(2),
@@ -137,8 +126,6 @@ const punchOut = async (req, res) => {
   }
 };
 
-// @desc    Take break
-// @route   POST /api/staff/break
 // @desc    Take break
 // @route   POST /api/staff/break
 const takeBreak = async (req, res) => {
@@ -307,7 +294,6 @@ const getTodayAttendance = async (req, res) => {
         isOnBreak,
         activeSession,
         serverTime: now.toISOString(),
-        // Add helpful display info
         displayInfo: {
           morningDuration: morningDuration.toFixed(2),
           afternoonDuration: afternoonDuration.toFixed(2)
@@ -320,8 +306,6 @@ const getTodayAttendance = async (req, res) => {
   }
 };
 
-// @desc    Punch in
-// @route   POST /api/staff/punch-in
 // @desc    Punch in
 // @route   POST /api/staff/punch-in
 const punchIn = async (req, res) => {
@@ -357,10 +341,8 @@ const punchIn = async (req, res) => {
           isPresent: false,
         },
       });
-      console.log("Created new attendance record");
     } else {
       attendance[session].punchIn = now;
-      console.log("Updated existing attendance record");
     }
 
     await attendance.save();
@@ -430,12 +412,10 @@ const calculateCurrentWorkDuration = (attendance) => {
 
   // Ensure we don't return negative values
   const seconds = Math.max(0, Math.floor(totalWorkMs / 1000));
-  console.log("Calculated work seconds:", seconds);
 
   return seconds;
 };
-// @desc    Request leave
-// @route   POST /api/staff/leave
+
 // @desc    Request leave
 // @route   POST /api/staff/leave
 const requestLeave = async (req, res) => {
@@ -488,7 +468,7 @@ const requestLeave = async (req, res) => {
   }
 };
 
-// @desc    Cancel leave request (optional - deletes image from Cloudinary)
+// @desc    Cancel leave request (deletes image from Cloudinary)
 // @route   DELETE /api/staff/leave/:id
 const cancelLeaveRequest = async (req, res) => {
   try {

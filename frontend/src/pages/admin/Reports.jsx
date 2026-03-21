@@ -212,31 +212,25 @@ const Reports = () => {
     const doc = new jsPDF();
     const monthName = new Date(selectedYear, selectedMonth - 1).toLocaleString('default', { month: 'long' });
     
-    // Try to add logo
     const addLogoAndGenerate = () => {
       // Create a canvas to handle logo
       const img = new Image();
       img.crossOrigin = 'Anonymous';
-      img.src = '/src/assets/logo.png'; // Adjust path to your logo
+      img.src = '/src/assets/logo.png'; 
       
       img.onload = () => {
         try {
-          // Calculate dimensions to maintain aspect ratio
           const maxHeight = 20;
           const maxWidth = 40;
           
-          // Get original dimensions
           const originalWidth = img.width;
           const originalHeight = img.height;
           
-          // Calculate new dimensions maintaining aspect ratio
           let newWidth = maxHeight;
           let newHeight = maxHeight;
           
-          // If image is wider than tall, adjust width proportionally
           if (originalWidth > originalHeight) {
             newWidth = (originalWidth / originalHeight) * maxHeight;
-            // Cap width if it exceeds maxWidth
             if (newWidth > maxWidth) {
               newWidth = maxWidth;
               newHeight = (originalHeight / originalWidth) * maxWidth;
@@ -247,13 +241,13 @@ const Reports = () => {
           doc.addImage(img, 'PNG', 14, 8, newWidth, newHeight);
           generateReportContent(doc, monthName, true);
         } catch (err) {
-          console.log('Logo error, generating without logo:', err);
+          console.error('Logo error, generating without logo:', err);
           generateReportContent(doc, monthName, false);
         }
       };
       
       img.onerror = () => {
-        console.log('Logo not found, generating without logo');
+        console.error('Logo not found, generating without logo');
         generateReportContent(doc, monthName, false);
       };
       

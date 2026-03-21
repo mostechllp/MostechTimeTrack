@@ -27,7 +27,7 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
-  joiningDate: {  // Add this field
+  joiningDate: { 
     type: Date,
     default: Date.now
   },

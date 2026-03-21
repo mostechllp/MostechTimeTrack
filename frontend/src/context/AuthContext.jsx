@@ -74,7 +74,7 @@ export const AuthProvider = ({ children }) => {
     toast.success("Logged out successfully");
   };
 
-  // Function to update token (useful if you implement token refresh)
+  // Function to update token
   const updateToken = (newToken) => {
     if (user) {
       const updatedUser = { ...user, token: newToken };
