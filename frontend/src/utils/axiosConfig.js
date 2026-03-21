@@ -1,20 +1,5 @@
 import axios from 'axios';
 
-// Determine the API URL based on environment
-const getApiUrl = () => {
-  // Production (Vercel)
-  if (import.meta.env.PROD) {
-    return import.meta.env.VITE_BACKEND_URL || 'https://your-backend.onrender.com/api';
-  }
-  
-  // Development (localhost)
-  return import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000/api';
-};
-
-const API_URL = getApiUrl();
-
-console.log('API URL:', API_URL); // This will help debug
-
 // Create axios instance
 const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_BACKEND_URL,
