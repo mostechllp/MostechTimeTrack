@@ -103,9 +103,6 @@ const AdminDashboard = () => {
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold" style={{ color: '#020c4c' }}>
             Admin Dashboard
           </h1>
-          <div className="text-xs sm:text-sm text-gray-600 bg-white px-3 py-1.5 rounded-lg shadow-sm">
-            Last updated: {new Date().toLocaleTimeString()}
-          </div>
         </div>
 
         {/* Stats Grid - 2x2 on mobile, 4 in row on desktop */}
