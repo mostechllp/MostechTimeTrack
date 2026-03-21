@@ -61,15 +61,7 @@ app.get('/health', (req, res) => {
 // API Routes - MOUNT THEM UNDER /api
 app.use('/api/auth', authRoutes);
 app.use('/api/staff', staffRoutes);
-app.use('/api/admin', adminRoutes);
-
-// Catch-all for API routes that don't exist
-app.use('/api/*', (req, res) => {
-  res.status(404).json({ 
-    message: `API endpoint not found: ${req.originalUrl}`,
-    availableEndpoints: ['/api/auth', '/api/staff', '/api/admin']
-  });
-});
+app.use('/api/admin', adminRoutes)
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Connected to MongoDB'))
