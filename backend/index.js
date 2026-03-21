@@ -39,15 +39,37 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Routes
+// Root endpoint - for testing
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Mostech Solutions API',
+    status: 'running',
+    endpoints: ['/api/auth', '/api/staff', '/api/admin', '/health']
+  });
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  });
+});
+
+// API Routes - MOUNT THEM UNDER /api
 app.use('/api/auth', authRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/admin', adminRoutes);
 
-app.get("/health", (req, res) => {
-  res.send("Server running")
-})
-
+// Catch-all for API routes that don't exist
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ 
+    message: `API endpoint not found: ${req.originalUrl}`,
+    availableEndpoints: ['/api/auth', '/api/staff', '/api/admin']
+  });
+});
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Connected to MongoDB'))
