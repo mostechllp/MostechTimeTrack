@@ -64,7 +64,6 @@ const StaffDashboard = () => {
   const fetchAttendance = useCallback(async () => {
     try {
       const { data } = await axiosInstance.get("/staff/today");
-      console.log("Attendance data received:", data);
       setAttendanceData(data);
       setLastSync(new Date());
 
@@ -193,7 +192,6 @@ const StaffDashboard = () => {
   const handleBreak = async () => {
     try {
       const { data } = await axiosInstance.post("/staff/break");
-      console.log("Break response:", data);
 
       setAttendanceData({
         hasAttendance: true,
@@ -217,7 +215,6 @@ const StaffDashboard = () => {
   const handleResume = async () => {
     try {
       const { data } = await axiosInstance.post("/staff/resume");
-      console.log("Resume response:", data);
 
       setAttendanceData({
         hasAttendance: true,

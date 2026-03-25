@@ -5,13 +5,13 @@ import {
   ClockIcon,
   FilterIcon,
   XIcon,
+  ExclamationIcon,
 } from "@heroicons/react/outline";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import axiosInstance from "../../utils/axiosConfig";
 import toast from "react-hot-toast";
 import ConfirmModal from "../../components/resuable/ConfirmModal";
-
 
 const Reports = () => {
   const [staff, setStaff] = useState([]);
@@ -22,6 +22,7 @@ const Reports = () => {
   const [expandedRecord, setExpandedRecord] = useState(null);
   const [showReportConfirm, setShowReportConfirm] = useState(false);
   const [pendingFormData, setPendingFormData] = useState(null);
+  const [hasTodayRecords, setHasTodayRecords] = useState(false);
 
   const { register, handleSubmit, watch } = useForm({
     defaultValues: {
@@ -80,8 +81,16 @@ const Reports = () => {
       setAttendance(response.data);
       setExpandedRecord(null);
 
+      // Check if there are today's records
+      const today = new Date().toISOString().split("T")[0];
+      const hasToday = response.data.some((record) => {
+        const recordDate = new Date(record.date).toISOString().split("T")[0];
+        return recordDate === today;
+      });
+      setHasTodayRecords(hasToday);
+
       if (response.data.length === 0) {
-        toast.info("No completed attendance records found for this period");
+        toast.info("No attendance records found for this period");
       }
     } catch (error) {
       console.error("Error fetching report:", error);
@@ -156,13 +165,13 @@ const Reports = () => {
             doc.addImage(img, "PNG", 14, 8, newWidth, newHeight);
             generateReportContent(doc, monthName, true);
           } catch (err) {
-            console.log("Logo error, generating without logo:", err);
+            console.error("Logo error, generating without logo:", err);
             generateReportContent(doc, monthName, false);
           }
         };
 
         img.onerror = () => {
-          console.log("Logo not found, generating without logo");
+          console.error("Logo not found, generating without logo");
           generateReportContent(doc, monthName, false);
         };
 
@@ -409,16 +418,25 @@ const Reports = () => {
               </button>
             )}
           </div>
-
-          {/* Day completion status */}
-          <div className="flex items-center space-x-2 px-3 sm:px-4 py-2 bg-white rounded-lg shadow-sm w-full sm:w-auto">
-            <p
-              className={`text-xs sm:text-sm font-medium ${dayComplete ? "text-green-600" : "text-yellow-600"}`}
-            >
-              {dayComplete ? "✓ Day Complete" : "⚠️ Today in Progress"}
-            </p>
-          </div>
         </div>
+        {/* Warning for incomplete today's records */}
+        {hasTodayRecords && !dayComplete && (
+          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="flex items-start space-x-3">
+              <ExclamationIcon className="h-5 w-5 text-yellow-600 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-yellow-800">
+                  Today's data may be incomplete
+                </p>
+                <p className="text-xs text-yellow-700 mt-1">
+                  Some staff members are still working. Records will update
+                  automatically when they punch out. Today's data will be
+                  finalized after working hours end.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Mobile Filter Toggle Button */}
         <div className="md:hidden mb-4">
@@ -536,11 +554,11 @@ const Reports = () => {
 
             {/* Info message for incomplete days */}
             {!dayComplete && (
-              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-xs sm:text-sm text-yellow-800">
-                  ⚠️ Today's attendance is still in progress. Reports will only
-                  show completed days. Today's data will be available after
-                  today ends.
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs sm:text-sm text-blue-800">
+                  Today's attendance is still in progress. Records will update
+                  automatically as staff punch in/out. All data will be visible
+                  in this report.
                 </p>
               </div>
             )}
@@ -618,7 +636,10 @@ const Reports = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {attendance.map((record, index) => (
-                    <tr key={index} className="hover:bg-gray-50 transition-colors">
+                    <tr
+                      key={index}
+                      className="hover:bg-gray-50 transition-colors"
+                    >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
@@ -629,7 +650,8 @@ const Reports = () => {
                           </div>
                           <div className="ml-3">
                             <div className="text-sm font-medium text-gray-900">
-                              {record.userId?.firstName} {record.userId?.lastName}
+                              {record.userId?.firstName}{" "}
+                              {record.userId?.lastName}
                             </div>
                           </div>
                         </div>
@@ -665,7 +687,7 @@ const Reports = () => {
                             +{record.overtimeHours?.toFixed(2)} hrs
                           </span>
                         ) : (
-                          "0 hrs"
+                          <span className="text-gray-400">--</span>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -688,7 +710,10 @@ const Reports = () => {
             {/* Mobile Card View - Simplified */}
             <div className="md:hidden divide-y divide-gray-200">
               {attendance.map((record, index) => (
-                <div key={index} className="p-4 hover:bg-gray-50 transition-colors">
+                <div
+                  key={index}
+                  className="p-4 hover:bg-gray-50 transition-colors"
+                >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center mb-2">
@@ -713,10 +738,13 @@ const Reports = () => {
                           <p className="text-xs text-gray-500">Punch In</p>
                           <p className="font-mono text-sm">
                             {record.punchIn
-                              ? new Date(record.punchIn).toLocaleTimeString([], {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })
+                              ? new Date(record.punchIn).toLocaleTimeString(
+                                  [],
+                                  {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  },
+                                )
                               : "--:--"}
                           </p>
                         </div>
@@ -724,10 +752,13 @@ const Reports = () => {
                           <p className="text-xs text-gray-500">Punch Out</p>
                           <p className="font-mono text-sm">
                             {record.punchOut
-                              ? new Date(record.punchOut).toLocaleTimeString([], {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })
+                              ? new Date(record.punchOut).toLocaleTimeString(
+                                  [],
+                                  {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  },
+                                )
                               : "--:--"}
                           </p>
                         </div>
@@ -744,7 +775,9 @@ const Reports = () => {
                         <div className="mt-3 pt-3 border-t border-gray-100">
                           <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <p className="text-xs text-gray-500">Worked Hours</p>
+                              <p className="text-xs text-gray-500">
+                                Worked Hours
+                              </p>
                               <p
                                 className="font-semibold"
                                 style={{ color: "#020c4c" }}
@@ -752,12 +785,16 @@ const Reports = () => {
                                 {record.totalWorkedHours?.toFixed(2)} hrs
                               </p>
                             </div>
-                            <div>
-                              <p className="text-xs text-gray-500">Overtime</p>
-                              <p className="font-semibold text-orange-600">
-                                {record.overtimeHours?.toFixed(2) || "0"} hrs
-                              </p>
-                            </div>
+                            {record.overtimeHours > 0 && (
+                              <div>
+                                <p className="text-xs text-gray-500">
+                                  Overtime
+                                </p>
+                                <p className="font-semibold text-orange-600">
+                                  +{record.overtimeHours?.toFixed(2)} hrs
+                                </p>
+                              </div>
+                            )}
                             <div className="col-span-2">
                               <p className="text-xs text-gray-500">Status</p>
                               <span
@@ -842,6 +879,14 @@ const Reports = () => {
         onConfirm={handleConfirmReport}
         title="Generate Report"
         message={`Today's attendance is not yet complete. Reports will only show completed days.\n\nDo you want to continue?`}
+      />
+
+      <ConfirmModal
+        isOpen={showReportConfirm}
+        onClose={handleCancelReport}
+        onConfirm={handleConfirmReport}
+        title="Generate Report"
+        message={`Today's attendance is still in progress. Some records may be incomplete.\n\nDo you want to continue?`}
       />
     </div>
   );

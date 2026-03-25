@@ -94,6 +94,7 @@ const punchIn = async (req, res) => {
   }
 };
 
+
 // @desc    Punch out
 // @route   POST /api/staff/punch-out
 const punchOut = async (req, res) => {
@@ -171,6 +172,60 @@ const punchOut = async (req, res) => {
     console.error('Error in punchOut:', error);
     res.status(500).json({ message: 'Server error' });
   }
+};
+
+// Helper function to calculate current work duration (in seconds)
+const calculateCurrentWorkDuration = (attendance) => {
+  if (!attendance || !attendance.punchIn) return 0;
+  
+  const now = new Date();
+  let totalWorkMs = 0;
+  
+  // If already punched out, return the stored total worked hours
+  if (attendance.punchOut) {
+    return attendance.totalWorkedHours * 3600;
+  }
+  
+  // Calculate from punch in to now
+  totalWorkMs = now - attendance.punchIn;
+  
+  // Subtract break times
+  if (attendance.breaks && attendance.breaks.length > 0) {
+    attendance.breaks.forEach(breakPeriod => {
+      if (breakPeriod.breakEnd) {
+        totalWorkMs -= (breakPeriod.breakEnd - breakPeriod.breakStart);
+      } else {
+        // Ongoing break - subtract time from break start to now
+        totalWorkMs -= (now - breakPeriod.breakStart);
+      }
+    });
+  }
+  
+  // Return seconds, ensure non-negative
+  return Math.max(0, Math.floor(totalWorkMs / 1000));
+};
+
+// Also add a helper to calculate total worked hours (for saving to database)
+const calculateTotalWorkedHours = (attendance) => {
+  if (!attendance || !attendance.punchIn) return 0;
+  
+  const punchOutTime = attendance.punchOut || new Date();
+  let totalWorkMs = punchOutTime - attendance.punchIn;
+  
+  // Subtract break times
+  if (attendance.breaks && attendance.breaks.length > 0) {
+    attendance.breaks.forEach(breakPeriod => {
+      if (breakPeriod.breakEnd) {
+        totalWorkMs -= (breakPeriod.breakEnd - breakPeriod.breakStart);
+      } else if (attendance.punchOut) {
+        // Only subtract completed breaks if punched out
+        console.log('Incomplete break found');
+      }
+    });
+  }
+  
+  const totalHours = totalWorkMs / (1000 * 60 * 60);
+  return Math.round(totalHours * 100) / 100;
 };
 
 // @desc    Take break

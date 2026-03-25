@@ -241,60 +241,45 @@ const getAllStaff = async (req, res) => {
 const getMonthlyReport = async (req, res) => {
   try {
     const { month, year, staffId } = req.query;
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentDay = now.getDay();
 
     const startDate = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
     const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
 
+    console.log('Fetching report for:', { month, year, staffId });
+    console.log('Date range:', startDate.toISOString(), 'to', endDate.toISOString());
+
+    // Build query
     const query = {
       date: {
         $gte: startDate,
-        $lte: endDate,
-      },
+        $lte: endDate
+      }
     };
 
-    if (staffId && staffId !== "all") {
+    if (staffId && staffId !== 'all') {
       query.userId = staffId;
     }
 
+    // Get all attendance records - no day completion filter
     const attendance = await Attendance.find(query)
       .populate({
-        path: "userId",
-        select: "email firstName lastName",
-        match: { role: "staff" },
+        path: 'userId',
+        select: 'email firstName lastName',
+        match: { role: 'staff' }
       })
-      .sort({ date: 1, "userId.firstName": 1 });
+      .sort({ date: 1, 'userId.firstName': 1 });
 
-    // Filter out records where userId is null
-    let validAttendance = attendance.filter((record) => record.userId !== null);
+    console.log(`Found ${attendance.length} total records`);
 
-    // Apply cutoff logic for today's records
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Filter out records where userId is null (deleted users)
+    const validAttendance = attendance.filter(record => record.userId !== null);
 
-    validAttendance = validAttendance
-      .map((record) => {
-        const recordDate = new Date(record.date);
-        recordDate.setHours(0, 0, 0, 0);
-
-        if (recordDate.getTime() === today.getTime()) {
-          const isDayComplete = isDayCompleteCheck(
-            now,
-            currentDay,
-            currentHour,
-          );
-          if (!isDayComplete) return null;
-        }
-        return record;
-      })
-      .filter((record) => record !== null);
-
+    console.log(`After filtering null users: ${validAttendance.length} records`);
     res.json(validAttendance);
+    
   } catch (error) {
-    console.error("Error in getMonthlyReport:", error);
-    res.status(500).json({ message: "Server error" });
+    console.error('Error in getMonthlyReport:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
