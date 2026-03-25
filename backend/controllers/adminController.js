@@ -188,7 +188,7 @@ const getLeaveRequests = async (req, res) => {
     const leaves = await Leave.find()
       .populate("userId", "email firstName lastName")
       .sort({ createdAt: -1 })
-      .select("-cloudinaryPublicId"); // Don't send public ID
+      .select("-cloudinaryPublicId");
 
     res.json(leaves);
   } catch (error) {
@@ -208,15 +208,16 @@ const updateLeaveStatus = async (req, res) => {
       return res.status(404).json({ message: "Leave request not found" });
     }
 
-    // Store old status and public ID for potential rollback
-    const oldStatus = leave.status;
-    const oldPublicId = leave.cloudinaryPublicId;
-
     leave.status = status;
     if (status === "rejected") {
       leave.rejectionReason = rejectionReason;
     }
     await leave.save();
+
+    // Format date range for email
+    const dateRange = leave.startDate && leave.endDate
+      ? `${new Date(leave.startDate).toLocaleDateString()} to ${new Date(leave.endDate).toLocaleDateString()}`
+      : new Date(leave.date).toLocaleDateString();
 
     // Send email notification
     const emailSubject =
@@ -247,7 +248,8 @@ const updateLeaveStatus = async (req, res) => {
           </div>
           <div class="content">
             <div class="approved">
-              <p>Your leave request for <strong>${new Date(leave.date).toLocaleDateString()}</strong> has been <strong>APPROVED</strong>.</p>
+              <p>Your leave request for <strong>${dateRange}</strong> has been <strong>APPROVED</strong>.</p>
+              <p><strong>Total Leave Days:</strong> ${leave.leaveDays} day${leave.leaveDays !== 1 ? 's' : ''}</p>
             </div>
             <div class="screenshot-link">
               <p>Your uploaded screenshot: <a href="${leave.emailScreenshot}" target="_blank">View Image</a></p>
@@ -278,7 +280,8 @@ const updateLeaveStatus = async (req, res) => {
           </div>
           <div class="content">
             <div class="rejected">
-              <p>Your leave request for <strong>${new Date(leave.date).toLocaleDateString()}</strong> has been <strong>REJECTED</strong>.</p>
+              <p>Your leave request for <strong>${dateRange}</strong> has been <strong>REJECTED</strong>.</p>
+              <p><strong>Requested Days:</strong> ${leave.leaveDays} day${leave.leaveDays !== 1 ? 's' : ''}</p>
               ${rejectionReason ? `<p><strong>Reason:</strong> ${rejectionReason}</p>` : ""}
             </div>
             <p>Please contact your manager if you have any questions.</p>

@@ -16,7 +16,7 @@ import ConfirmModal from "../../components/resuable/ConfirmModal";
 const ActiveStaffToday = () => {
   const [activeStaff, setActiveStaff] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [, setLastUpdated] = useState(new Date());
 
   useEffect(() => {
     fetchActiveStaff();
@@ -53,17 +53,6 @@ const ActiveStaffToday = () => {
 
   return (
     <div className="bg-white rounded-xl shadow-lg p-4 mb-6">
-      <div className="flex justify-between items-center mb-3">
-        <div className="flex items-center space-x-2">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-          <h3 className="font-semibold" style={{ color: "#020c4c" }}>
-            Currently Working ({activeStaff.length})
-          </h3>
-        </div>
-        <span className="text-xs text-gray-400">
-          Updated: {lastUpdated.toLocaleTimeString()}
-        </span>
-      </div>
 
       <div className="flex flex-wrap gap-2">
         {activeStaff.map((staff) => (

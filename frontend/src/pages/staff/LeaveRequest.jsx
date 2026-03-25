@@ -10,10 +10,73 @@ import {
   ClipboardCheckIcon,
   MenuIcon,
   ChevronRightIcon,
-  ChevronLeftIcon,
   ClockIcon,
+  InformationCircleIcon,
 } from "@heroicons/react/outline";
 import ConfirmModal from "../../components/resuable/ConfirmModal";
+
+// List of holidays for 2026
+const HOLIDAYS_2026 = [
+  new Date(2026, 0, 1),  // New Year's Day
+  new Date(2026, 0, 26), // Republic Day
+  new Date(2026, 2, 20), // Id-ul-Fitr (Ramzan)
+  new Date(2026, 3, 3),  // Good Friday
+  new Date(2026, 3, 15), // Vishu
+  new Date(2026, 4, 1),  // May Day
+  new Date(2026, 4, 27), // Id-ul-Ad'ha (Bakrid)
+  new Date(2026, 7, 15), // Independence Day
+  new Date(2026, 7, 25), // Milad-i-Sherif
+  new Date(2026, 7, 26), // Thiruvonam
+  new Date(2026, 9, 2),  // Gandhi Jayanthi
+  new Date(2026, 11, 25), // Christmas
+];
+
+// Function to check if a date is a holiday
+const isHoliday = (date) => {
+  return HOLIDAYS_2026.some(holiday => 
+    holiday.getFullYear() === date.getFullYear() &&
+    holiday.getMonth() === date.getMonth() &&
+    holiday.getDate() === date.getDate()
+  );
+};
+
+// Function to check if a date is a Sunday
+const isSunday = (date) => {
+  return date.getDay() === 0;
+};
+
+// Function to calculate working days between two dates (excluding Sundays and holidays)
+const calculateWorkingDays = (startDate, endDate) => {
+  if (!startDate || !endDate) return 0;
+  
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  
+  if (start > end) return 0;
+  
+  let workingDays = 0;
+  let currentDate = new Date(start);
+  
+  while (currentDate <= end) {
+    if (!isSunday(currentDate) && !isHoliday(currentDate)) {
+      workingDays++;
+    }
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  
+  return workingDays;
+};
+
+// Function to format date for display
+const formatDateForDisplay = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { 
+    weekday: 'short', 
+    month: 'short', 
+    day: 'numeric' 
+  });
+};
 
 const LeaveRequest = () => {
   const {
@@ -22,6 +85,7 @@ const LeaveRequest = () => {
     formState: { errors },
     reset,
     setValue,
+    watch,
   } = useForm();
   const [leaves, setLeaves] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -29,10 +93,49 @@ const LeaveRequest = () => {
   const [uploading, setUploading] = useState(false);
   const [leaveId, setLeaveId] = useState("");
   const [copied, setCopied] = useState(false);
-  const [showLeaveRequestDeleteConfirm, setShowLeaveRequestDeleteConfirm] =
-    useState(false);
+  const [showLeaveRequestDeleteConfirm, setShowLeaveRequestDeleteConfirm] = useState(false);
   const [selectedLeaveId, setSelectedLeaveId] = useState(null);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false); // Default closed
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  
+  // Watch start and end dates
+  const startDate = watch("startDate");
+  const endDate = watch("endDate");
+  
+  // Calculate working days
+  const [workingDays, setWorkingDays] = useState(0);
+  const [excludedDates, setExcludedDates] = useState({ sundays: 0, holidays: 0 });
+
+  // Update working days when dates change
+  useEffect(() => {
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      
+      if (start <= end) {
+        const days = calculateWorkingDays(startDate, endDate);
+        setWorkingDays(days);
+        
+        // Calculate excluded days
+        let sundayCount = 0;
+        let holidayCount = 0;
+        let currentDate = new Date(start);
+        
+        while (currentDate <= end) {
+          if (isSunday(currentDate)) sundayCount++;
+          if (isHoliday(currentDate)) holidayCount++;
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+        
+        setExcludedDates({ sundays: sundayCount, holidays: holidayCount });
+      } else {
+        setWorkingDays(0);
+        setExcludedDates({ sundays: 0, holidays: 0 });
+      }
+    } else {
+      setWorkingDays(0);
+      setExcludedDates({ sundays: 0, holidays: 0 });
+    }
+  }, [startDate, endDate]);
 
   // Fetch leaves on component mount
   useEffect(() => {
@@ -100,10 +203,17 @@ const LeaveRequest = () => {
       return;
     }
 
+    if (workingDays === 0) {
+      toast.error("Please select valid start and end dates");
+      return;
+    }
+
     const formData = new FormData();
-    formData.append("date", data.date);
+    formData.append("startDate", data.startDate);
+    formData.append("endDate", data.endDate);
     formData.append("reason", data.reason);
     formData.append("leaveId", leaveId);
+    formData.append("leaveDays", workingDays);
     formData.append("emailScreenshot", selectedFile);
 
     try {
@@ -118,6 +228,7 @@ const LeaveRequest = () => {
       reset();
       removeSelectedFile();
       generateUniqueId();
+      setWorkingDays(0);
       fetchLeaves();
     } catch (error) {
       toast.error(
@@ -246,25 +357,90 @@ const LeaveRequest = () => {
               </div>
 
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Date
-                  </label>
-                  <div className="relative">
-                    <CalendarIcon className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" />
-                    <input
-                      type="date"
-                      {...register("date", { required: "Date is required" })}
-                      min={new Date().toISOString().split("T")[0]}
-                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                {/* Start Date and End Date */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Start Date
+                    </label>
+                    <div className="relative">
+                      <CalendarIcon className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" />
+                      <input
+                        type="date"
+                        {...register("startDate", { 
+                          required: "Start date is required" 
+                        })}
+                        min={new Date().toISOString().split("T")[0]}
+                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    {errors.startDate && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {errors.startDate.message}
+                      </p>
+                    )}
                   </div>
-                  {errors.date && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors.date.message}
-                    </p>
-                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      End Date
+                    </label>
+                    <div className="relative">
+                      <CalendarIcon className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" />
+                      <input
+                        type="date"
+                        {...register("endDate", { 
+                          required: "End date is required",
+                          validate: (value) => {
+                            if (startDate && value < startDate) {
+                              return "End date must be after start date";
+                            }
+                            return true;
+                          }
+                        })}
+                        min={startDate || new Date().toISOString().split("T")[0]}
+                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    {errors.endDate && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {errors.endDate.message}
+                      </p>
+                    )}
+                  </div>
                 </div>
+
+                {/* Leave Days Calculation Display */}
+                {startDate && endDate && workingDays > 0 && (
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-start space-x-2">
+                      <InformationCircleIcon className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-blue-800">
+                          Leave Summary
+                        </p>
+                        <div className="mt-2 space-y-1 text-sm">
+                          <p className="text-blue-700">
+                            <strong>Total Leave Days:</strong> {workingDays} day{workingDays !== 1 ? 's' : ''}
+                          </p>
+                          <p className="text-xs text-blue-600">
+                            Period: {formatDateForDisplay(startDate)} - {formatDateForDisplay(endDate)}
+                          </p>
+                          {excludedDates.sundays > 0 && (
+                            <p className="text-xs text-blue-600">
+                              Excluded: {excludedDates.sundays} Sunday{excludedDates.sundays !== 1 ? 's' : ''}
+                            </p>
+                          )}
+                          {excludedDates.holidays > 0 && (
+                            <p className="text-xs text-blue-600">
+                              Excluded: {excludedDates.holidays} Holiday{excludedDates.holidays !== 1 ? 's' : ''}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -334,21 +510,21 @@ const LeaveRequest = () => {
 
                 <button
                   type="submit"
-                  disabled={uploading}
+                  disabled={uploading || workingDays === 0}
                   className={`w-full py-3 px-4 rounded-lg text-white font-medium transition ${
-                    uploading
+                    uploading || workingDays === 0
                       ? "opacity-50 cursor-not-allowed"
                       : "hover:opacity-90"
                   }`}
-                  style={{ background: uploading ? "#6b7280" : "#020c4c" }}
+                  style={{ background: uploading || workingDays === 0 ? "#6b7280" : "#020c4c" }}
                 >
-                  {uploading ? "Submitting..." : "Submit Leave Request"}
+                  {uploading ? "Submitting..." : workingDays === 0 ? "Select dates" : "Submit Leave Request"}
                 </button>
               </form>
             </div>
           </div>
 
-          {/* Collapsible History Panel - Slide from Right */}
+          {/* Collapsible History Panel */}
           <div
             className={`fixed top-0 right-0 h-full bg-white shadow-2xl transition-all duration-300 ease-in-out z-20 overflow-y-auto ${
               isHistoryOpen ? "w-80" : "w-0"
@@ -356,7 +532,6 @@ const LeaveRequest = () => {
             style={{ top: "80px", height: "calc(100% - 80px)" }}
           >
             <div className="p-4">
-              {/* History Header */}
               <div className="flex justify-between items-center mb-4 pb-2 border-b">
                 <h3 className="text-lg font-bold" style={{ color: "#020c4c" }}>
                   Leave History
@@ -369,7 +544,6 @@ const LeaveRequest = () => {
                 </button>
               </div>
 
-              {/* Leave Stats Summary */}
               <div className="grid grid-cols-3 gap-2 mb-4">
                 <div className="text-center p-2 bg-green-50 rounded-lg">
                   <p className="text-xs text-gray-500">Approved</p>
@@ -391,7 +565,6 @@ const LeaveRequest = () => {
                 </div>
               </div>
 
-              {/* Leave List */}
               <div className="space-y-3">
                 {leaves.length === 0 ? (
                   <div className="text-center py-8">
@@ -404,10 +577,7 @@ const LeaveRequest = () => {
                   leaves.map((leave) => (
                     <div
                       key={leave._id}
-                      className="border rounded-lg p-3 hover:shadow-md transition cursor-pointer"
-                      onClick={() => {
-                        // Optional: You can add functionality to view details
-                      }}
+                      className="border rounded-lg p-3 hover:shadow-md transition"
                     >
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
@@ -422,8 +592,15 @@ const LeaveRequest = () => {
                             </span>
                           </div>
                           <p className="text-xs font-medium">
-                            {new Date(leave.date).toLocaleDateString()}
+                            {leave.startDate && leave.endDate 
+                              ? `${new Date(leave.startDate).toLocaleDateString()} - ${new Date(leave.endDate).toLocaleDateString()}`
+                              : new Date(leave.date).toLocaleDateString()}
                           </p>
+                          {leave.leaveDays && (
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {leave.leaveDays} day{leave.leaveDays !== 1 ? 's' : ''}
+                            </p>
+                          )}
                           <p className="text-xs text-gray-600 mt-1 line-clamp-2">
                             {leave.reason}
                           </p>
@@ -473,7 +650,6 @@ const LeaveRequest = () => {
             </div>
           </div>
 
-          {/* Overlay when history is open on mobile */}
           {isHistoryOpen && (
             <div
               className="fixed inset-0 bg-black bg-opacity-50 z-10 md:hidden"

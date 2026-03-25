@@ -289,7 +289,7 @@ const getTodayAttendance = async (req, res) => {
 // @route   POST /api/staff/leave
 const requestLeave = async (req, res) => {
   try {
-    const { date, reason, leaveId } = req.body;
+    const { startDate, endDate, reason, leaveId, leaveDays } = req.body;
     
     // Check if leaveId already exists
     const existingLeave = await Leave.findOne({ leaveId });
@@ -301,12 +301,22 @@ const requestLeave = async (req, res) => {
       return res.status(400).json({ message: 'Email screenshot is required' });
     }
 
+    // Validate dates
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    if (start > end) {
+      return res.status(400).json({ message: 'End date must be after start date' });
+    }
+
     const cloudinaryResult = req.file;
     
     const leave = new Leave({
       userId: req.user._id,
       leaveId,
-      date,
+      startDate: start,
+      endDate: end,
+      leaveDays: parseInt(leaveDays),
       reason,
       emailScreenshot: cloudinaryResult.path,
       cloudinaryPublicId: cloudinaryResult.filename,
@@ -379,8 +389,8 @@ const cancelLeaveRequest = async (req, res) => {
 const getMyLeaves = async (req, res) => {
   try {
     const leaves = await Leave.find({ userId: req.user._id })
-      .sort({ date: -1 })
-      .select('-cloudinaryPublicId'); // Don't send public ID to frontend
+      .sort({ startDate: -1 })
+      .select('-cloudinaryPublicId');
     
     res.json(leaves);
   } catch (error) {

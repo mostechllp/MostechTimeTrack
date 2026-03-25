@@ -149,7 +149,6 @@ const Header = () => {
                     to="/admin/staff-reports"
                     onClick={closeMobileMenu}
                   >
-                    <DocumentTextIcon className="h-5 w-5 mr-2" />
                     Daily Reports
                   </MobileNavLink>
                 </>
