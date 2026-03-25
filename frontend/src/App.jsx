@@ -35,7 +35,7 @@ function App() {
     );
   }
   return (
-    <Router>
+    <Router basename="/time-tracker">
       <AuthProvider>
         <div className="min-h-screen bg-gray-50">
           <Toaster position="top-right" />
