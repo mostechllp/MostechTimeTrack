@@ -83,14 +83,12 @@ const Header = () => {
               <div className="hidden md:flex items-center space-x-4">
                 {user.role !== "admin" && (
                   <div className="flex items-center space-x-2 px-3 py-1.5 bg-white/10 rounded-full backdrop-blur-sm">
-                    {user.profileImage ? (
+                    {user.profileImage && (
                       <img
                         src={user.profileImage}
                         alt="Profile"
                         className="h-6 w-6 rounded-full object-cover"
                       />
-                    ) : (
-                      <UserCircleIcon className="h-6 w-6 text-blue-500" />
                     )}
                     <span className="text-sm font-medium text-black">
                       {user.email}
