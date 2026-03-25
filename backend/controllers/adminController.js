@@ -386,13 +386,22 @@ const getDashboardStats = async (req, res) => {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     
-    // Get present today count (staff who have punched in today)
-    const presentToday = await Attendance.distinct('userId', {
+    // Get present today count (staff who have status 'present' today)
+    const presentToday = await Attendance.countDocuments({
       date: {
         $gte: today,
         $lt: tomorrow
       },
-      status: { $in: ['present', 'half-day'] }
+      status: 'present'  // Only count 'present' status, not half-day
+    });
+    
+    // Get half-day today count
+    const halfDayToday = await Attendance.countDocuments({
+      date: {
+        $gte: today,
+        $lt: tomorrow
+      },
+      status: 'half-day'
     });
     
     // Get pending leave requests count
@@ -428,7 +437,8 @@ const getDashboardStats = async (req, res) => {
     
     res.json({
       totalStaff,
-      presentToday: presentToday.length,
+      presentToday,
+      halfDayToday,
       pendingLeaves,
       leaveStats,
       recentActivity

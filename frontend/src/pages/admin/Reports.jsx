@@ -6,8 +6,8 @@ import {
   FilterIcon,
   XIcon,
 } from "@heroicons/react/outline";
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import axiosInstance from "../../utils/axiosConfig";
 import toast from "react-hot-toast";
 import ConfirmModal from "../../components/resuable/ConfirmModal";
@@ -104,7 +104,7 @@ const Reports = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [expandedRecord, setExpandedRecord] = useState(null);
   const [showReportConfirm, setShowReportConfirm] = useState(false);
-   const [pendingFormData, setPendingFormData] = useState(null);
+  const [pendingFormData, setPendingFormData] = useState(null);
 
   const { register, handleSubmit, watch } = useForm({
     defaultValues: {
@@ -207,16 +207,15 @@ const Reports = () => {
     setShowReportConfirm(false);
   };
 
- const downloadPDF = () => {
+  const downloadPDF = () => {
   try {
     const doc = new jsPDF();
     const monthName = new Date(selectedYear, selectedMonth - 1).toLocaleString('default', { month: 'long' });
     
     const addLogoAndGenerate = () => {
-      // Create a canvas to handle logo
       const img = new Image();
       img.crossOrigin = 'Anonymous';
-      img.src = '/src/assets/logo.png'; 
+      img.src = '/src/assets/logo.png';
       
       img.onload = () => {
         try {
@@ -241,17 +240,16 @@ const Reports = () => {
           doc.addImage(img, 'PNG', 14, 8, newWidth, newHeight);
           generateReportContent(doc, monthName, true);
         } catch (err) {
-          console.error('Logo error, generating without logo:', err);
+          console.log('Logo error, generating without logo:', err);
           generateReportContent(doc, monthName, false);
         }
       };
       
       img.onerror = () => {
-        console.error('Logo not found, generating without logo');
+        console.log('Logo not found, generating without logo');
         generateReportContent(doc, monthName, false);
       };
       
-      // Set a timeout in case image loading takes too long
       setTimeout(() => {
         if (img.complete === false) {
           generateReportContent(doc, monthName, false);
@@ -300,7 +298,7 @@ const generateReportContent = (doc, monthName, hasLogo) => {
       return;
     }
     
-    // Prepare table data
+    // Prepare table data with CORRECT status calculation
     const tableColumn = [
       "Staff Name", 
       "Date", 
@@ -312,6 +310,7 @@ const generateReportContent = (doc, monthName, hasLogo) => {
       "Status"
     ];
     const tableRows = [];
+    const rowStatuses = []; // Track status for each row
 
     attendance.forEach(item => {
       const staffName = `${item.userId?.firstName || ''} ${item.userId?.lastName || ''}`.trim() || 'Unknown';
@@ -334,12 +333,49 @@ const generateReportContent = (doc, monthName, hasLogo) => {
         : '--:--';
       
       const hours = item.totalWorkedHours?.toFixed(2) || '0';
-      const status = item.status === 'present' ? 'Present' : item.status === 'half-day' ? 'Half Day' : 'Absent';
       
-      tableRows.push([staffName, date, morningStart, morningEnd, afternoonStart, afternoonEnd, hours, status]);
+      // CORRECT STATUS CALCULATION - based on session presence, not database status
+      const morningPresent = item.morningSession?.isPresent;
+      const afternoonPresent = item.afternoonSession?.isPresent;
+      
+      let statusText;
+      let statusType;
+      if (morningPresent && afternoonPresent) {
+        statusText = 'Present';
+        statusType = 'present';
+      } else if (morningPresent || afternoonPresent) {
+        statusText = 'Half Day';
+        statusType = 'half-day';
+      } else {
+        statusText = 'Absent';
+        statusType = 'absent';
+      }
+      
+      tableRows.push([staffName, date, morningStart, morningEnd, afternoonStart, afternoonEnd, hours, statusText]);
+      rowStatuses.push(statusType);
     });
 
-    // Generate table using autoTable
+    // Calculate summary based on CORRECT status
+    let presentCount = 0;
+    let halfDayCount = 0;
+    let absentCount = 0;
+    let totalHoursSum = 0;
+    
+    attendance.forEach(item => {
+      const morningPresent = item.morningSession?.isPresent;
+      const afternoonPresent = item.afternoonSession?.isPresent;
+      
+      if (morningPresent && afternoonPresent) {
+        presentCount++;
+      } else if (morningPresent || afternoonPresent) {
+        halfDayCount++;
+      } else {
+        absentCount++;
+      }
+      totalHoursSum += item.totalWorkedHours || 0;
+    });
+
+    // Generate table using autoTable with conditional row coloring for absent only
     autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
@@ -360,30 +396,34 @@ const generateReportContent = (doc, monthName, hasLogo) => {
       alternateRowStyles: { 
         fillColor: [248, 248, 248]
       },
+      // Add conditional row coloring for absent days only
+      didParseCell: function(data) {
+        // Only color rows where status is 'absent'
+        if (data.row.index >= 0 && rowStatuses[data.row.index] === 'absent') {
+          data.cell.styles.fillColor = [255, 200, 200]; // Light red for absent rows
+          // Optional: also change text color for absent rows
+          data.cell.styles.textColor = [139, 0, 0]; // Dark red text
+        }
+      },
       columnStyles: {
-        0: { cellWidth: 32 }, // Staff Name
-        1: { cellWidth: 22 }, // Date
-        2: { cellWidth: 22 }, // Morning Start
-        3: { cellWidth: 22 }, // Morning End
-        4: { cellWidth: 25 }, // Afternoon Start
-        5: { cellWidth: 25 }, // Afternoon End
-        6: { cellWidth: 18 }, // Total Hours
-        7: { cellWidth: 22 }  // Status
+        0: { cellWidth: 32 },
+        1: { cellWidth: 22 },
+        2: { cellWidth: 22 },
+        3: { cellWidth: 22 },
+        4: { cellWidth: 25 },
+        5: { cellWidth: 25 },
+        6: { cellWidth: 18 },
+        7: { cellWidth: 22 }
       }
     });
     
-    // Add summary
+    // Add summary with CORRECT counts
     const finalY = doc.lastAutoTable?.finalY || doc.autoTableEndPosY || 200;
     doc.setFontSize(8);
     doc.setTextColor(100, 100, 100);
     
-    const totalPresent = attendance.filter(r => r.status === 'present').length;
-    const totalHalfDay = attendance.filter(r => r.status === 'half-day').length;
-    const totalAbsent = attendance.filter(r => r.status === 'absent').length;
-    const totalHours = attendance.reduce((sum, r) => sum + (r.totalWorkedHours || 0), 0);
-    
-    doc.text(`Summary: ${totalPresent} Present, ${totalHalfDay} Half Day, ${totalAbsent} Absent`, 14, finalY + 8);
-    doc.text(`Total Hours Worked: ${totalHours.toFixed(2)} hrs`, 14, finalY + 14);
+    doc.text(`Summary: ${presentCount} Present, ${halfDayCount} Half Day, ${absentCount} Absent`, 14, finalY + 8);
+    doc.text(`Total Hours Worked: ${totalHoursSum.toFixed(2)} hrs`, 14, finalY + 14);
     
     // Footer
     doc.setFontSize(7);
@@ -705,11 +745,21 @@ const generateReportContent = (doc, monthName, hasLogo) => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
-                          className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(record.status)}`}
+                          className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            record.morningSession?.isPresent &&
+                            record.afternoonSession?.isPresent
+                              ? "bg-green-100 text-green-800"
+                              : record.morningSession?.isPresent ||
+                                  record.afternoonSession?.isPresent
+                                ? "bg-yellow-100 text-yellow-800"
+                                : "bg-red-100 text-red-800"
+                          }`}
                         >
-                          {record.status === "present"
+                          {record.morningSession?.isPresent &&
+                          record.afternoonSession?.isPresent
                             ? "Present"
-                            : record.status === "half-day"
+                            : record.morningSession?.isPresent ||
+                                record.afternoonSession?.isPresent
                               ? "Half Day"
                               : "Absent"}
                         </span>
@@ -841,19 +891,40 @@ const generateReportContent = (doc, monthName, hasLogo) => {
                 <div>
                   <p className="text-gray-500">Present Days</p>
                   <p className="font-semibold text-green-600">
-                    {attendance.filter((r) => r.status === "present").length}
+                    {
+                      attendance.filter((r) => {
+                        const morningPresent = r.morningSession?.isPresent;
+                        const afternoonPresent = r.afternoonSession?.isPresent;
+                        return morningPresent && afternoonPresent;
+                      }).length
+                    }
                   </p>
                 </div>
                 <div>
                   <p className="text-gray-500">Half Days</p>
                   <p className="font-semibold text-yellow-600">
-                    {attendance.filter((r) => r.status === "half-day").length}
+                    {
+                      attendance.filter((r) => {
+                        const morningPresent = r.morningSession?.isPresent;
+                        const afternoonPresent = r.afternoonSession?.isPresent;
+                        return (
+                          (morningPresent || afternoonPresent) &&
+                          !(morningPresent && afternoonPresent)
+                        );
+                      }).length
+                    }
                   </p>
                 </div>
                 <div>
                   <p className="text-gray-500">Absent Days</p>
                   <p className="font-semibold text-red-600">
-                    {attendance.filter((r) => r.status === "absent").length}
+                    {
+                      attendance.filter((r) => {
+                        const morningPresent = r.morningSession?.isPresent;
+                        const afternoonPresent = r.afternoonSession?.isPresent;
+                        return !morningPresent && !afternoonPresent;
+                      }).length
+                    }
                   </p>
                 </div>
               </div>
@@ -886,12 +957,12 @@ const generateReportContent = (doc, monthName, hasLogo) => {
         )}
       </div>
       <ConfirmModal
-          isOpen={showReportConfirm}
-          onClose={handleCancelReport}
-          onConfirm={handleConfirmReport}
-          title="Generate Report"
-          message={`Today's attendance is not yet complete. Reports will only show completed days.\n\nDo you want to continue?`}
-        />
+        isOpen={showReportConfirm}
+        onClose={handleCancelReport}
+        onConfirm={handleConfirmReport}
+        title="Generate Report"
+        message={`Today's attendance is not yet complete. Reports will only show completed days.\n\nDo you want to continue?`}
+      />
     </div>
   );
 };
