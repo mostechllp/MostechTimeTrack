@@ -44,7 +44,7 @@ axiosInstance.interceptors.response.use(
       // Unauthorized - clear local storage and redirect to login
       localStorage.removeItem('userInfo');
       if (!window.location.pathname.includes('/login')) {
-        window.location.href = '/time-tracker/login';
+        window.location.href = '/login';
       }
     }
     return Promise.reject(error);
