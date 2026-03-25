@@ -5,6 +5,7 @@ const dotenv = require('dotenv');
 const authRoutes = require('./routes/authRoutes');
 const staffRoutes = require('./routes/staffRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const { scheduleAutoApprove, scheduleHourlyForDev } = require('./jobs/autoApproveLeaves');
 
 dotenv.config();
 
@@ -66,6 +67,9 @@ app.use('/api/admin', adminRoutes)
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
+
+scheduleAutoApprove();
+scheduleHourlyForDev();
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

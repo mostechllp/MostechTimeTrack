@@ -1,8 +1,8 @@
-const User = require('../models/User');
-const Attendance = require('../models/Attendance');
-const Leave = require('../models/Leave');
-const sendEmail = require('../utils/emailService');
-const bcrypt = require('bcryptjs');
+const User = require("../models/User");
+const Attendance = require("../models/Attendance");
+const Leave = require("../models/Leave");
+const sendEmail = require("../utils/emailService");
+const bcrypt = require("bcryptjs");
 
 // @desc    Create staff user
 // @route   POST /api/admin/create-staff
@@ -10,17 +10,16 @@ const createStaff = async (req, res) => {
   try {
     const { email, firstName, lastName, joiningDate } = req.body;
 
-
     // Check if user already exists BEFORE doing anything else
     const userExists = await User.findOne({ email });
     if (userExists) {
-      return res.status(400).json({ message: 'User already exists' });
+      return res.status(400).json({ message: "User already exists" });
     }
 
     // Generate temporary password
     const tempPassword = Math.random().toString(36).slice(-8);
 
-     let parsedJoiningDate;
+    let parsedJoiningDate;
     if (joiningDate) {
       parsedJoiningDate = new Date(joiningDate);
       // Set to start of day for consistency
@@ -35,21 +34,19 @@ const createStaff = async (req, res) => {
       firstName,
       lastName,
       password: tempPassword,
-      role: 'staff',
+      role: "staff",
       isFirstLogin: true,
-       joiningDate: parsedJoiningDate
+      joiningDate: parsedJoiningDate,
     });
 
     await user.save();
 
-
     // Send email with credentials
     let emailSent = false;
     try {
-      
       await sendEmail({
         email: user.email,
-        subject: 'Your Mostech Business Solutions Account Credentials',
+        subject: "Your Mostech Business Solutions Account Credentials",
         html: `
           <h2>Welcome to Mostech Business Solutions</h2>
           <p>Your account has been created. Here are your login credentials:</p>
@@ -57,44 +54,42 @@ const createStaff = async (req, res) => {
           <p><strong>Temporary Password:</strong> ${tempPassword}</p>
           <p><strong>Joining Date:</strong> ${user.joiningDate.toLocaleDateString()}</p>
           <p>Please login and change your password immediately.</p>
-        `
+        `,
       });
-      
+
       emailSent = true;
-      
     } catch (emailError) {
-      console.error('Email sending failed:', emailError);
+      console.error("Email sending failed:", emailError);
       // Don't throw here - still want to return success for user creation
     }
 
     // Return success response
-    return res.status(201).json({ 
-      message: emailSent 
-        ? 'Staff created successfully. Credentials sent to email.' 
-        : 'Staff created successfully but email could not be sent. Please contact admin.',
-      user: { 
-        email: user.email, 
-        firstName: user.firstName, 
-        lastName: user.lastName ,
-        joiningDate: user.joiningDate
+    return res.status(201).json({
+      message: emailSent
+        ? "Staff created successfully. Credentials sent to email."
+        : "Staff created successfully but email could not be sent. Please contact admin.",
+      user: {
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        joiningDate: user.joiningDate,
       },
-      tempPassword: !emailSent ? tempPassword : undefined // Only send password if email failed
+      tempPassword: !emailSent ? tempPassword : undefined, // Only send password if email failed
     });
-
   } catch (error) {
-    console.error('Server error in createStaff:', error);
-    
+    console.error("Server error in createStaff:", error);
+
     // Check if this is a duplicate key error (race condition)
     if (error.code === 11000) {
-      return res.status(400).json({ 
-        message: 'User already exists (race condition)',
-        error: 'duplicate'
+      return res.status(400).json({
+        message: "User already exists (race condition)",
+        error: "duplicate",
       });
     }
-    
-    res.status(500).json({ 
-      message: 'Server error', 
-      error: error.message 
+
+    res.status(500).json({
+      message: "Server error",
+      error: error.message,
     });
   }
 };
@@ -103,10 +98,10 @@ const createStaff = async (req, res) => {
 // @route   GET /api/admin/staff
 const getAllStaff = async (req, res) => {
   try {
-    const staff = await User.find({ role: 'staff' }).select('-password');
+    const staff = await User.find({ role: "staff" }).select("-password");
     res.json(staff);
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -118,51 +113,57 @@ const getMonthlyReport = async (req, res) => {
     const now = new Date();
     const currentHour = now.getHours();
     const currentDay = now.getDay();
-    
+
     const startDate = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
     const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
 
     const query = {
       date: {
         $gte: startDate,
-        $lte: endDate
-      }
+        $lte: endDate,
+      },
     };
 
-    if (staffId && staffId !== 'all') {
+    if (staffId && staffId !== "all") {
       query.userId = staffId;
     }
 
     const attendance = await Attendance.find(query)
       .populate({
-        path: 'userId',
-        select: 'email firstName lastName',
-        match: { role: 'staff' }
+        path: "userId",
+        select: "email firstName lastName",
+        match: { role: "staff" },
       })
-      .sort({ date: 1, 'userId.firstName': 1 });
+      .sort({ date: 1, "userId.firstName": 1 });
 
     // Filter out records where userId is null
-    let validAttendance = attendance.filter(record => record.userId !== null);
+    let validAttendance = attendance.filter((record) => record.userId !== null);
 
     // Apply cutoff logic for today's records
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
-    validAttendance = validAttendance.map(record => {
-      const recordDate = new Date(record.date);
-      recordDate.setHours(0, 0, 0, 0);
-      
-      if (recordDate.getTime() === today.getTime()) {
-        const isDayComplete = isDayCompleteCheck(now, currentDay, currentHour);
-        if (!isDayComplete) return null;
-      }
-      return record;
-    }).filter(record => record !== null);
+
+    validAttendance = validAttendance
+      .map((record) => {
+        const recordDate = new Date(record.date);
+        recordDate.setHours(0, 0, 0, 0);
+
+        if (recordDate.getTime() === today.getTime()) {
+          const isDayComplete = isDayCompleteCheck(
+            now,
+            currentDay,
+            currentHour,
+          );
+          if (!isDayComplete) return null;
+        }
+        return record;
+      })
+      .filter((record) => record !== null);
 
     res.json(validAttendance);
   } catch (error) {
-    console.error('Error in getMonthlyReport:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error in getMonthlyReport:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -170,30 +171,29 @@ const getMonthlyReport = async (req, res) => {
 const isDayCompleteCheck = (now, day, hour) => {
   // Sunday
   if (day === 0) return true; // Full day is complete (no work)
-  
+
   // Saturday - day ends at 1 PM
   if (day === 6) {
     return hour >= 13; // Complete after 1 PM
   }
-  
+
   // Weekday - day ends at 6 PM
   return hour >= 18; // Complete after 6 PM
 };
-
 
 // @desc    Get all leave requests
 // @route   GET /api/admin/leaves
 const getLeaveRequests = async (req, res) => {
   try {
     const leaves = await Leave.find()
-      .populate('userId', 'email firstName lastName')
+      .populate("userId", "email firstName lastName")
       .sort({ createdAt: -1 })
-      .select('-cloudinaryPublicId'); // Don't send public ID
-    
+      .select("-cloudinaryPublicId"); // Don't send public ID
+
     res.json(leaves);
   } catch (error) {
-    console.error('Error in getLeaveRequests:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error in getLeaveRequests:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -202,10 +202,10 @@ const getLeaveRequests = async (req, res) => {
 const updateLeaveStatus = async (req, res) => {
   try {
     const { status, rejectionReason } = req.body;
-    const leave = await Leave.findById(req.params.id).populate('userId');
+    const leave = await Leave.findById(req.params.id).populate("userId");
 
     if (!leave) {
-      return res.status(404).json({ message: 'Leave request not found' });
+      return res.status(404).json({ message: "Leave request not found" });
     }
 
     // Store old status and public ID for potential rollback
@@ -213,17 +213,20 @@ const updateLeaveStatus = async (req, res) => {
     const oldPublicId = leave.cloudinaryPublicId;
 
     leave.status = status;
-    if (status === 'rejected') {
+    if (status === "rejected") {
       leave.rejectionReason = rejectionReason;
     }
     await leave.save();
 
     // Send email notification
-    const emailSubject = status === 'approved' 
-      ? 'Leave Request Approved' 
-      : 'Leave Request Rejected';
-    
-    const emailHtml = status === 'approved' ? `
+    const emailSubject =
+      status === "approved"
+        ? "Leave Request Approved"
+        : "Leave Request Rejected";
+
+    const emailHtml =
+      status === "approved"
+        ? `
       <!DOCTYPE html>
       <html>
       <head>
@@ -255,7 +258,8 @@ const updateLeaveStatus = async (req, res) => {
         </div>
       </body>
       </html>
-    ` : `
+    `
+        : `
       <!DOCTYPE html>
       <html>
       <head>
@@ -275,7 +279,7 @@ const updateLeaveStatus = async (req, res) => {
           <div class="content">
             <div class="rejected">
               <p>Your leave request for <strong>${new Date(leave.date).toLocaleDateString()}</strong> has been <strong>REJECTED</strong>.</p>
-              ${rejectionReason ? `<p><strong>Reason:</strong> ${rejectionReason}</p>` : ''}
+              ${rejectionReason ? `<p><strong>Reason:</strong> ${rejectionReason}</p>` : ""}
             </div>
             <p>Please contact your manager if you have any questions.</p>
             <p>Best regards,<br>Mostech Business Solutions Team</p>
@@ -288,22 +292,21 @@ const updateLeaveStatus = async (req, res) => {
     await sendEmail({
       email: leave.userId.email,
       subject: emailSubject,
-      html: emailHtml
+      html: emailHtml,
     });
 
     // Remove sensitive data before sending response
     const leaveResponse = leave.toObject();
     delete leaveResponse.cloudinaryPublicId;
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: `Leave request ${status}`,
-      leave: leaveResponse 
+      leave: leaveResponse,
     });
-
   } catch (error) {
-    console.error('Error in updateLeaveStatus:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error in updateLeaveStatus:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -316,8 +319,8 @@ const cleanupOldRejectedLeaves = async (req, res) => {
 
     // Find rejected leaves older than 30 days
     const oldLeaves = await Leave.find({
-      status: 'rejected',
-      createdAt: { $lt: thirtyDaysAgo }
+      status: "rejected",
+      createdAt: { $lt: thirtyDaysAgo },
     });
 
     // Delete images from Cloudinary
@@ -329,18 +332,17 @@ const cleanupOldRejectedLeaves = async (req, res) => {
 
     // Delete records from database
     const result = await Leave.deleteMany({
-      status: 'rejected',
-      createdAt: { $lt: thirtyDaysAgo }
+      status: "rejected",
+      createdAt: { $lt: thirtyDaysAgo },
     });
 
-    res.json({ 
-      success: true, 
-      message: `Deleted ${result.deletedCount} old rejected leaves` 
+    res.json({
+      success: true,
+      message: `Deleted ${result.deletedCount} old rejected leaves`,
     });
-
   } catch (error) {
-    console.error('Error in cleanupOldRejectedLeaves:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error in cleanupOldRejectedLeaves:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -349,75 +351,74 @@ const cleanupOldRejectedLeaves = async (req, res) => {
 const getDashboardStats = async (req, res) => {
   try {
     // Get total staff count
-    const totalStaff = await User.countDocuments({ role: 'staff' });
-    
+    const totalStaff = await User.countDocuments({ role: "staff" });
+
     // Get today's date range
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    
+
     // Get present today count (staff who have status 'present' today)
     const presentToday = await Attendance.countDocuments({
       date: {
         $gte: today,
-        $lt: tomorrow
+        $lt: tomorrow,
       },
-      status: 'present'  // Only count 'present' status, not half-day
+      status: "present", // Only count 'present' status, not half-day
     });
-    
+
     // Get half-day today count
     const halfDayToday = await Attendance.countDocuments({
       date: {
         $gte: today,
-        $lt: tomorrow
+        $lt: tomorrow,
       },
-      status: 'half-day'
+      status: "half-day",
     });
-    
+
     // Get pending leave requests count
-    const pendingLeaves = await Leave.countDocuments({ status: 'pending' });
-    
+    const pendingLeaves = await Leave.countDocuments({ status: "pending" });
+
     // Get recent activity (last 5 attendance records)
     const recentActivity = await Attendance.find()
-      .populate('userId', 'firstName lastName email')
+      .populate("userId", "firstName lastName email")
       .sort({ date: -1 })
       .limit(5)
-      .select('userId date status totalWorkedHours');
-    
+      .select("userId date status totalWorkedHours");
+
     // Get leave requests summary
     const leaveSummary = await Leave.aggregate([
       {
         $group: {
-          _id: '$status',
-          count: { $sum: 1 }
-        }
-      }
+          _id: "$status",
+          count: { $sum: 1 },
+        },
+      },
     ]);
-    
+
     // Format leave summary
     const leaveStats = {
       pending: 0,
       approved: 0,
-      rejected: 0
+      rejected: 0,
     };
-    
-    leaveSummary.forEach(item => {
+
+    leaveSummary.forEach((item) => {
       leaveStats[item._id] = item.count;
     });
-    
+
     res.json({
       totalStaff,
       presentToday,
       halfDayToday,
       pendingLeaves,
       leaveStats,
-      recentActivity
+      recentActivity,
     });
-    
   } catch (error) {
-    console.error('Error getting dashboard stats:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error getting dashboard stats:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -426,59 +427,58 @@ const getDashboardStats = async (req, res) => {
 const getAttendanceSummary = async (req, res) => {
   try {
     const { days = 7 } = req.query; // Default to last 7 days
-    
+
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
-    
+
     const attendance = await Attendance.aggregate([
       {
         $match: {
           date: {
             $gte: startDate,
-            $lte: endDate
-          }
-        }
+            $lte: endDate,
+          },
+        },
       },
       {
         $group: {
           _id: {
-            date: { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
-            status: '$status'
+            date: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
+            status: "$status",
           },
-          count: { $sum: 1 }
-        }
+          count: { $sum: 1 },
+        },
       },
       {
-        $sort: { '_id.date': 1 }
-      }
+        $sort: { "_id.date": 1 },
+      },
     ]);
-    
+
     // Format for chart
-    const dates = [...new Set(attendance.map(a => a._id.date))].sort();
-    
-    const summary = dates.map(date => {
+    const dates = [...new Set(attendance.map((a) => a._id.date))].sort();
+
+    const summary = dates.map((date) => {
       const dayData = {
         date,
         present: 0,
         absent: 0,
-        'half-day': 0
+        "half-day": 0,
       };
-      
+
       attendance
-        .filter(a => a._id.date === date)
-        .forEach(a => {
+        .filter((a) => a._id.date === date)
+        .forEach((a) => {
           dayData[a._id.status] = a.count;
         });
-      
+
       return dayData;
     });
-    
+
     res.json(summary);
-    
   } catch (error) {
-    console.error('Error getting attendance summary:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error getting attendance summary:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -494,36 +494,208 @@ const getLiveAttendance = async (req, res) => {
     const attendance = await Attendance.find({
       date: {
         $gte: today,
-        $lt: tomorrow
-      }
+        $lt: tomorrow,
+      },
     })
-    .populate('userId', 'email firstName lastName')
-    .sort({ 'userId.firstName': 1 });
+      .populate("userId", "email firstName lastName")
+      .sort({ "userId.firstName": 1 });
 
     // Calculate current status for each record
     const now = new Date();
-    const liveData = attendance.map(record => {
+    const liveData = attendance.map((record) => {
       const recordObj = record.toObject();
-      
+
       // Calculate if still in session
-      const morningActive = record.morningSession?.punchIn && !record.morningSession?.punchOut;
-      const afternoonActive = record.afternoonSession?.punchIn && !record.afternoonSession?.punchOut;
-      
+      const morningActive =
+        record.morningSession?.punchIn && !record.morningSession?.punchOut;
+      const afternoonActive =
+        record.afternoonSession?.punchIn && !record.afternoonSession?.punchOut;
+
       return {
         ...recordObj,
         isActive: morningActive || afternoonActive,
-        activeSession: morningActive ? 'morning' : afternoonActive ? 'afternoon' : null
+        activeSession: morningActive
+          ? "morning"
+          : afternoonActive
+            ? "afternoon"
+            : null,
       };
     });
 
     res.json({
       date: today.toLocaleDateString(),
       records: liveData,
-      isComplete: isDayCompleteCheck(now, now.getDay(), now.getHours())
+      isComplete: isDayCompleteCheck(now, now.getDay(), now.getHours()),
     });
   } catch (error) {
-    console.error('Error in getLiveAttendance:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error in getLiveAttendance:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// @desc    Auto-approve pending leave requests older than 2 days
+// @route   POST /api/admin/leaves/auto-approve
+const autoApproveLeaves = async (req, res) => {
+  try {
+    const twoDaysAgo = new Date();
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+
+    // Find pending leaves that are older than 2 days
+    const pendingLeaves = await Leave.find({
+      status: "pending",
+      createdAt: { $lt: twoDaysAgo },
+    }).populate("userId", "email firstName lastName");
+
+    const autoApproved = [];
+    const autoApprovedIds = [];
+
+    for (const leave of pendingLeaves) {
+      leave.status = "approved";
+      leave.autoApproved = true;
+      leave.autoApprovedAt = new Date();
+      await leave.save();
+
+      autoApproved.push(leave);
+      autoApprovedIds.push(leave._id);
+
+      // Send notification to staff about auto-approval
+      await sendEmail({
+        email: leave.userId.email,
+        subject: "Leave Request Auto-Approved",
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background: #020c4c; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+              .content { padding: 20px; background: #f9f9f9; border: 1px solid #ddd; }
+              .approved { background: #d4edda; color: #155724; padding: 15px; border-radius: 4px; }
+              .info { background: #e7f3ff; color: #0066cc; padding: 10px; border-radius: 4px; margin-top: 15px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>Leave Request Auto-Approved</h1>
+              </div>
+              <div class="content">
+                <div class="approved">
+                  <p>Your leave request for <strong>${new Date(leave.date).toLocaleDateString()}</strong> has been <strong>AUTO-APPROVED</strong>.</p>
+                </div>
+                <p><strong>Reason:</strong> ${leave.reason}</p>
+                <div class="info">
+                  <p>ℹ️ This request was automatically approved after 2 days as no action was taken by the admin.</p>
+                </div>
+                <p>Enjoy your time off!</p>
+                <p>Best regards,<br>Mostech Business Solutions Team</p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `,
+      });
+    }
+
+    // If there were auto-approved leaves, notify admin
+    if (autoApproved.length > 0) {
+      // Find admin users
+      const admins = await User.find({ role: "admin" });
+
+      // Create admin notification email
+      const adminEmailHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: #020c4c; color: white; padding: 20px; text-align: center; }
+            .content { padding: 20px; background: #f9f9f9; }
+            .alert { background: #fff3cd; color: #856404; padding: 15px; border-radius: 4px; }
+            .leave-item { background: white; padding: 10px; margin: 10px 0; border-left: 3px solid #28a745; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>Auto-Approval Notification</h1>
+            </div>
+            <div class="content">
+              <div class="alert">
+                <p><strong>⚠️ Attention Admin:</strong> The following leave requests were automatically approved due to no action within 2 days:</p>
+              </div>
+              
+              ${autoApproved
+                .map(
+                  (leave) => `
+                <div class="leave-item">
+                  <p><strong>Staff:</strong> ${leave.userId.firstName} ${leave.userId.lastName}</p>
+                  <p><strong>Email:</strong> ${leave.userId.email}</p>
+                  <p><strong>Date:</strong> ${new Date(leave.date).toLocaleDateString()}</p>
+                  <p><strong>Reason:</strong> ${leave.reason}</p>
+                  <p><strong>Requested on:</strong> ${new Date(leave.createdAt).toLocaleDateString()}</p>
+                </div>
+              `,
+                )
+                .join("")}
+              
+              <p style="margin-top: 20px;">Please review these auto-approved requests and take note for future reference.</p>
+              <p><a href="${process.env.FRONTEND_URL}/admin/leaves" style="background: #020c4c; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">View All Leaves</a></p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      // Send notification to all admins
+      for (const admin of admins) {
+        await sendEmail({
+          email: admin.email,
+          subject: `[Auto-Approval] ${autoApproved.length} Leave Request(s) Auto-Approved`,
+          html: adminEmailHtml,
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Auto-approved ${autoApproved.length} leave requests`,
+      autoApproved: autoApproved.map((l) => ({
+        id: l._id,
+        staff: `${l.userId.firstName} ${l.userId.lastName}`,
+        date: l.date,
+      })),
+    });
+  } catch (error) {
+    console.error("Error in autoApproveLeaves:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+// @desc    Get pending leaves that are about to expire (1 day left)
+// @route   GET /api/admin/leaves/pending-expiring
+const getPendingExpiringLeaves = async (req, res) => {
+  try {
+    const oneDayAgo = new Date();
+    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+
+    const twoDaysAgo = new Date();
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+
+    const expiringLeaves = await Leave.find({
+      status: "pending",
+      createdAt: {
+        $gte: oneDayAgo,
+        $lt: twoDaysAgo,
+      },
+    }).populate("userId", "email firstName lastName");
+
+    res.json(expiringLeaves);
+  } catch (error) {
+    console.error("Error in getPendingExpiringLeaves:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -533,8 +705,10 @@ module.exports = {
   getMonthlyReport,
   getLeaveRequests,
   updateLeaveStatus,
-  getDashboardStats,  
+  getDashboardStats,
   getAttendanceSummary,
   cleanupOldRejectedLeaves,
-  getLiveAttendance
+  getLiveAttendance,
+  autoApproveLeaves,
+  getPendingExpiringLeaves,
 };

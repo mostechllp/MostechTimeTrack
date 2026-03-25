@@ -10,7 +10,9 @@ const {
   getDashboardStats,
   getAttendanceSummary,
   cleanupOldRejectedLeaves,
-  getLiveAttendance
+  getLiveAttendance,
+  autoApproveLeaves,
+  getPendingExpiringLeaves
 } = require('../controllers/adminController');
 const { getAllReports, getUserReports } = require('../controllers/reportController');
 
@@ -32,6 +34,8 @@ router.get('/reports/monthly', getMonthlyReport);
 router.get('/leaves', getLeaveRequests);
 router.put('/leaves/:id', updateLeaveStatus);
 router.delete('/leaves/cleanup', cleanupOldRejectedLeaves); 
+router.post('/leaves/auto-approve', autoApproveLeaves);
+router.get('/leaves/pending-expiring', getPendingExpiringLeaves);
 
 router.get('/reports', getAllReports);
 router.get('/reports/live', getLiveAttendance);

@@ -30,10 +30,17 @@ const leaveSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'approved', 'rejected'],
+    enum: ['pending', 'approved', 'rejected', 'auto-approved'],
     default: 'pending'
   },
   rejectionReason: String,
+   autoApproved: {
+    type: Boolean,
+    default: false
+  },
+  autoApprovedAt: {
+    type: Date
+  },
   createdAt: {
     type: Date,
     default: Date.now
