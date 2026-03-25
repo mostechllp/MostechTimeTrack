@@ -47,17 +47,17 @@ const StaffDashboard = () => {
 
   // Format date with leading zeros
   const formatDate = (date) => {
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, "0");
+    const month = (date.getMonth() + 1).toString().padStart(2, "0");
     const year = date.getFullYear();
     return `${day}/${month}/${year}`;
   };
 
   // Format time in 24-hour format with leading zeros
   const formatTime24 = (date) => {
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    const seconds = date.getSeconds().toString().padStart(2, '0');
+    const hours = date.getHours().toString().padStart(2, "0");
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    const seconds = date.getSeconds().toString().padStart(2, "0");
     return `${hours}:${minutes}:${seconds}`;
   };
 
@@ -154,7 +154,14 @@ const StaffDashboard = () => {
         },
       });
       setWorkSeconds(0);
-      toast.success("Punched in successfully");
+      const day = new Date().getDay();
+      if (day === 0) {
+        toast.success(
+          "Punched in successfully! Working on Sunday? Great dedication! 💪",
+        );
+      } else {
+        toast.success("Punched in successfully");
+      }
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to punch in");
     } finally {
@@ -263,14 +270,20 @@ const StaffDashboard = () => {
         <div className="bg-white rounded-lg shadow-lg p-4 md:p-8 mb-6">
           {/* Header Section - Responsive */}
           <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-6">
-            <h1 className="text-xl md:text-2xl font-bold text-center md:text-left" style={{ color: "#020c4c" }}>
+            <h1
+              className="text-xl md:text-2xl font-bold text-center md:text-left"
+              style={{ color: "#020c4c" }}
+            >
               Welcome, {user?.firstName || "Staff"}!
             </h1>
-            
+
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-center md:justify-end">
               {/* Current System Time - Live Clock */}
               <div className="text-center sm:text-right bg-gray-50 px-3 py-2 rounded-lg">
-                <div className="text-sm md:text-base font-mono font-medium" style={{ color: "#020c4c" }}>
+                <div
+                  className="text-sm md:text-base font-mono font-medium"
+                  style={{ color: "#020c4c" }}
+                >
                   {formatTime24(systemTime)}
                 </div>
                 <div className="text-xs text-gray-500">
@@ -313,7 +326,10 @@ const StaffDashboard = () => {
             </p>
 
             {/* Responsive timer - smaller on mobile */}
-            <div className="text-4xl sm:text-6xl md:text-7xl font-bold mb-6 md:mb-8 font-mono tracking-wider break-all" style={{ color: "#020c4c" }}>
+            <div
+              className="text-4xl sm:text-6xl md:text-7xl font-bold mb-6 md:mb-8 font-mono tracking-wider break-all"
+              style={{ color: "#020c4c" }}
+            >
               {formatTime(workSeconds)}
             </div>
 
@@ -381,11 +397,14 @@ const StaffDashboard = () => {
                   <div className="flex justify-between text-xs md:text-sm">
                     <span className="text-gray-600">Punch In:</span>
                     <span className="font-mono">
-                      {new Date(attendance.punchIn).toLocaleTimeString('en-US', { 
-                        hour: '2-digit', 
-                        minute: '2-digit',
-                        hour12: false 
-                      })}
+                      {new Date(attendance.punchIn).toLocaleTimeString(
+                        "en-US",
+                        {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: false,
+                        },
+                      )}
                     </span>
                   </div>
                 )}
@@ -393,11 +412,14 @@ const StaffDashboard = () => {
                   <div className="flex justify-between text-xs md:text-sm">
                     <span className="text-gray-600">Punch Out:</span>
                     <span className="font-mono">
-                      {new Date(attendance.punchOut).toLocaleTimeString('en-US', { 
-                        hour: '2-digit', 
-                        minute: '2-digit',
-                        hour12: false 
-                      })}
+                      {new Date(attendance.punchOut).toLocaleTimeString(
+                        "en-US",
+                        {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: false,
+                        },
+                      )}
                     </span>
                   </div>
                 )}
@@ -436,17 +458,22 @@ const StaffDashboard = () => {
                     {attendance.breaks.map((breakItem, idx) => (
                       <div key={idx} className="text-xs mb-1">
                         {breakItem.breakStart &&
-                          `Break ${idx + 1}: ${new Date(breakItem.breakStart).toLocaleTimeString('en-US', { 
-                            hour: '2-digit', 
-                            minute: '2-digit',
-                            hour12: false 
+                          `Break ${idx + 1}: ${new Date(
+                            breakItem.breakStart,
+                          ).toLocaleTimeString("en-US", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            hour12: false,
                           })}`}
                         {breakItem.breakEnd &&
-                          ` - ${new Date(breakItem.breakEnd).toLocaleTimeString('en-US', { 
-                            hour: '2-digit', 
-                            minute: '2-digit',
-                            hour12: false 
-                          })}`}
+                          ` - ${new Date(breakItem.breakEnd).toLocaleTimeString(
+                            "en-US",
+                            {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              hour12: false,
+                            },
+                          )}`}
                         {breakItem.duration &&
                           ` (${Math.round(breakItem.duration)} min)`}
                       </div>

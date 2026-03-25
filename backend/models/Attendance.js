@@ -66,7 +66,7 @@ attendanceSchema.pre('save', function() {
       this.status = 'present';
     } else if (this.totalWorkedHours === 9) {
       this.status = 'present';
-    } else if (this.totalWorkedHours === 4.5) {
+    } else if (this.totalWorkedHours >= 4) {
       this.status = 'half-day';
     } else {
       this.status = 'absent';

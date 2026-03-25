@@ -38,7 +38,6 @@ export const AuthProvider = ({ children }) => {
         password,
       });
 
-      console.log('Login response:', data);
 
       // Check for deleted account (though this should be caught by error)
       if (data.isDeleted) {

@@ -27,13 +27,41 @@ const upload = multer({
 const punchIn = async (req, res) => {
   try {
     const now = new Date();
+    const hours = now.getHours();
+    const day = now.getDay();
+    
+    // Allow punch-in any day of the week (including Sundays)
+    const isWorkingHours = (hours >= 0 && hours < 24); // Allow 24/7
+    
+    if (!isWorkingHours) {
+      return res.status(400).json({ 
+        message: 'Invalid time for punch in',
+        error: 'outside_hours'
+      });
+    }
+    
+    // Get start of day
     const startOfDay = new Date(now);
     startOfDay.setHours(0, 0, 0, 0);
-    
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Find existing attendance for today
     let attendance = await Attendance.findOne({
       userId: req.user._id,
-      date: startOfDay
+      date: {
+        $gte: startOfDay,
+        $lte: endOfDay,
+      },
     });
+
+    // Check if already punched in
+    if (attendance && attendance.punchIn) {
+      return res.status(400).json({ 
+        message: 'You have already punched in today!',
+        error: 'already_punched_in'
+      });
+    }
 
     if (!attendance) {
       attendance = new Attendance({
@@ -41,20 +69,23 @@ const punchIn = async (req, res) => {
         date: startOfDay,
         punchIn: now
       });
-    } else if (!attendance.punchIn) {
-      attendance.punchIn = now;
     } else {
-      return res.status(400).json({ message: 'Already punched in today' });
+      attendance.punchIn = now;
     }
 
     await attendance.save();
     
+    // Calculate current work duration
+    const currentWorkSeconds = calculateCurrentWorkDuration(attendance);
+
     res.json({ 
       success: true, 
       attendance: {
         ...attendance.toObject(),
-        activeSession: true,
-        currentWorkSeconds: 0
+        currentWorkSeconds,
+        isActive: true,
+        isOnBreak: false,
+        serverTime: now.toISOString()
       }
     });
   } catch (error) {
@@ -85,14 +116,55 @@ const punchOut = async (req, res) => {
     }
 
     attendance.punchOut = now;
+    
+    // Calculate total worked hours (excluding breaks)
+    let totalWorkedMs = now - attendance.punchIn;
+    
+    // Subtract break times
+    if (attendance.breaks && attendance.breaks.length > 0) {
+      attendance.breaks.forEach(breakPeriod => {
+        if (breakPeriod.breakEnd) {
+          totalWorkedMs -= (breakPeriod.breakEnd - breakPeriod.breakStart);
+        } else {
+          // If there's an ongoing break, don't subtract it
+          console.log('Ongoing break detected');
+        }
+      });
+    }
+    
+    const totalWorkedHours = totalWorkedMs / (1000 * 60 * 60);
+    attendance.totalWorkedHours = parseFloat(totalWorkedHours.toFixed(2));
+    
+    // Calculate overtime (more than 9 hours)
+    if (totalWorkedHours > 9) {
+      attendance.overtimeHours = parseFloat((totalWorkedHours - 9).toFixed(2));
+    } else {
+      attendance.overtimeHours = 0;
+    }
+    
+    // Determine status based on worked hours
+    if (totalWorkedHours >= 9) {
+      attendance.status = "present";
+    } else if (totalWorkedHours >= 4) {
+      attendance.status = "half-day";
+    } else {
+      attendance.status = "absent";
+    }
+    
     await attendance.save();
+    
+    // Calculate current work duration
+    const currentWorkSeconds = calculateCurrentWorkDuration(attendance);
     
     res.json({ 
       success: true, 
       attendance: {
         ...attendance.toObject(),
         activeSession: false,
-        currentWorkSeconds: 0
+        currentWorkSeconds,
+        totalWorkedHours: attendance.totalWorkedHours,
+        overtimeHours: attendance.overtimeHours,
+        status: attendance.status
       }
     });
   } catch (error) {
