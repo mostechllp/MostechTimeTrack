@@ -4,6 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import toast from "react-hot-toast";
 import { CameraIcon } from "@heroicons/react/outline";
 import axiosInstance from "../../utils/axiosConfig";
+import ConfirmModal from "../../components/resuable/ConfirmModal";
 const DEFAULT_AVATAR =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 24 24' fill='none' stroke='%23020c4c' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'%3E%3C/path%3E%3Ccircle cx='12' cy='7' r='4'%3E%3C/circle%3E%3C/svg%3E";
 
@@ -12,6 +13,7 @@ const Profile = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(user?.profileImage || null);
   const [uploading, setUploading] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const {
     register,
@@ -38,6 +40,15 @@ const Profile = () => {
 
     // Default avatar
     return DEFAULT_AVATAR;
+  };
+
+  const logoutConfirm = () => {
+    setShowLogoutConfirm(true);
+  };
+
+  const handleLogout = () => {
+    setShowLogoutConfirm(false);
+    logout();
   };
 
   const handleFileChange = (e) => {
@@ -208,7 +219,7 @@ const Profile = () => {
 
                 <button
                   type="button"
-                  onClick={logout}
+                  onClick={logoutConfirm}
                   className="flex-1 py-2 px-4 rounded-md text-white font-medium hover:opacity-90 transition"
                   style={{ background: "#dc2626" }}
                 >
@@ -226,6 +237,13 @@ const Profile = () => {
           </div>
         </div>
       </div>
+      <ConfirmModal
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={handleLogout}
+        title="Confirm Logging out"
+        message="Are you sure you want to logout?"
+      />
     </div>
   );
 };
