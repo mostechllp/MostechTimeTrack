@@ -278,14 +278,6 @@ const getTodayAttendance = async (req, res) => {
       }
     };
     
-    console.log('Attendance data:', {
-      punchIn: attendance.punchIn,
-      punchOut: attendance.punchOut,
-      currentWorkSeconds,
-      isActive,
-      isOnBreak
-    });
-    
     res.json(response);
   } catch (error) {
     console.error('Error in getTodayAttendance:', error);
@@ -313,7 +305,7 @@ const requestLeave = async (req, res) => {
     
     const leave = new Leave({
       userId: req.user._id,
-      leaveId, // Save the unique ID
+      leaveId,
       date,
       reason,
       emailScreenshot: cloudinaryResult.path,
