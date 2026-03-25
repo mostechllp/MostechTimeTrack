@@ -12,6 +12,7 @@ import axiosInstance from "../../utils/axiosConfig";
 import toast from "react-hot-toast";
 import ConfirmModal from "../../components/resuable/ConfirmModal";
 
+
 const Reports = () => {
   const [staff, setStaff] = useState([]);
   const [attendance, setAttendance] = useState([]);
@@ -50,13 +51,11 @@ const Reports = () => {
       setDayComplete(true);
       return;
     }
-
     if (day === 6) {
-      setDayComplete(hour >= 13);
+      setDayComplete(hour >= 18); // Saturday ends at 6 PM
       return;
     }
-
-    setDayComplete(hour >= 18);
+    setDayComplete(hour >= 18); // Weekdays end at 6 PM
   };
 
   const fetchStaff = async () => {
@@ -100,13 +99,11 @@ const Reports = () => {
       parseInt(data.year) === today.getFullYear();
 
     if (isToday && !dayComplete) {
-      // Store the form data and show confirmation modal
       setPendingFormData(data);
       setShowReportConfirm(true);
       return;
     }
 
-    // If not today or day is complete, fetch report directly
     await fetchReport(data);
   };
 
@@ -191,6 +188,7 @@ const Reports = () => {
       if (hasLogo) {
         doc.setFontSize(16);
         doc.setTextColor(2, 12, 76);
+        doc.text("Mostech Business Solutions", 45, 20);
       } else {
         doc.setFontSize(18);
         doc.setTextColor(2, 12, 76);
@@ -216,7 +214,7 @@ const Reports = () => {
         return;
       }
 
-      // Prepare table data with CORRECT status calculation
+      // Prepare table data - NEW SIMPLIFIED FORMAT
       const tableColumn = [
         "Staff Name",
         "Date",
@@ -226,9 +224,8 @@ const Reports = () => {
         "Overtime",
         "Status",
       ];
-
       const tableRows = [];
-      const rowStatuses = []; // Track status for each row
+      const rowStatuses = [];
 
       attendance.forEach((item) => {
         const staffName =
@@ -251,9 +248,17 @@ const Reports = () => {
         const overtime = item.overtimeHours?.toFixed(2) || "0";
 
         let statusText;
-        if (item.status === "present") statusText = "Present";
-        else if (item.status === "half-day") statusText = "Half Day";
-        else statusText = "Absent";
+        let statusType;
+        if (item.status === "present") {
+          statusText = "Present";
+          statusType = "present";
+        } else if (item.status === "half-day") {
+          statusText = "Half Day";
+          statusType = "half-day";
+        } else {
+          statusText = "Absent";
+          statusType = "absent";
+        }
 
         tableRows.push([
           staffName,
@@ -264,29 +269,23 @@ const Reports = () => {
           overtime,
           statusText,
         ]);
+        rowStatuses.push(statusType);
       });
 
-      // Calculate summary based on CORRECT status
+      // Calculate summary
       let presentCount = 0;
       let halfDayCount = 0;
       let absentCount = 0;
       let totalHoursSum = 0;
 
       attendance.forEach((item) => {
-        const morningPresent = item.morningSession?.isPresent;
-        const afternoonPresent = item.afternoonSession?.isPresent;
-
-        if (morningPresent && afternoonPresent) {
-          presentCount++;
-        } else if (morningPresent || afternoonPresent) {
-          halfDayCount++;
-        } else {
-          absentCount++;
-        }
+        if (item.status === "present") presentCount++;
+        else if (item.status === "half-day") halfDayCount++;
+        else absentCount++;
         totalHoursSum += item.totalWorkedHours || 0;
       });
 
-      // Generate table using autoTable with conditional row coloring for absent only
+      // Generate table
       autoTable(doc, {
         head: [tableColumn],
         body: tableRows,
@@ -307,13 +306,19 @@ const Reports = () => {
         alternateRowStyles: {
           fillColor: [248, 248, 248],
         },
-        // Add conditional row coloring for absent days only
         didParseCell: function (data) {
-          // Only color rows where status is 'absent'
+          // Color absent rows in light red
           if (data.row.index >= 0 && rowStatuses[data.row.index] === "absent") {
-            data.cell.styles.fillColor = [255, 200, 200]; // Light red for absent rows
-            // Optional: also change text color for absent rows
-            data.cell.styles.textColor = [139, 0, 0]; // Dark red text
+            data.cell.styles.fillColor = [255, 200, 200];
+            data.cell.styles.textColor = [139, 0, 0];
+          }
+          // Optional: Color overtime cells in orange if overtime > 0
+          if (data.column.index === 5 && data.row.index >= 0) {
+            const overtimeValue = parseFloat(tableRows[data.row.index][5]);
+            if (overtimeValue > 0) {
+              data.cell.styles.textColor = [255, 140, 0];
+              data.cell.styles.fontStyle = "bold";
+            }
           }
         },
         columnStyles: {
@@ -321,14 +326,13 @@ const Reports = () => {
           1: { cellWidth: 22 },
           2: { cellWidth: 22 },
           3: { cellWidth: 22 },
-          4: { cellWidth: 25 },
-          5: { cellWidth: 25 },
-          6: { cellWidth: 18 },
-          7: { cellWidth: 22 },
+          4: { cellWidth: 22 },
+          5: { cellWidth: 18 },
+          6: { cellWidth: 22 },
         },
       });
 
-      // Add summary with CORRECT counts
+      // Add summary
       const finalY = doc.lastAutoTable?.finalY || doc.autoTableEndPosY || 200;
       doc.setFontSize(8);
       doc.setTextColor(100, 100, 100);
@@ -354,7 +358,6 @@ const Reports = () => {
         { align: "center" },
       );
 
-      // Save the PDF
       doc.save(`attendance_${monthName}_${selectedYear}.pdf`);
       toast.success("PDF downloaded successfully");
     } catch (error) {
@@ -375,11 +378,7 @@ const Reports = () => {
   };
 
   const toggleRecordExpand = (index) => {
-    if (expandedRecord === index) {
-      setExpandedRecord(null);
-    } else {
-      setExpandedRecord(index);
-    }
+    setExpandedRecord(expandedRecord === index ? null : index);
   };
 
   const monthNames = Array.from({ length: 12 }, (_, i) =>
@@ -540,15 +539,15 @@ const Reports = () => {
               <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-xs sm:text-sm text-yellow-800">
                   ⚠️ Today's attendance is still in progress. Reports will only
-                  show completed days. Today's data will be available after 6:00
-                  PM (1:00 PM on Saturday).
+                  show completed days. Today's data will be available after
+                  today ends.
                 </p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Report Results */}
+        {/* Report Results - Simplified Table */}
         {attendance.length > 0 && (
           <div className="bg-white rounded-xl shadow-lg overflow-hidden">
             <div className="p-3 sm:p-4 bg-gray-50 border-b">
@@ -573,11 +572,23 @@ const Reports = () => {
                       hrs
                     </span>
                   </span>
+                  <span className="text-xs text-gray-500">
+                    Total Overtime:
+                    <span className="font-semibold ml-1 text-orange-600">
+                      {attendance
+                        .reduce(
+                          (sum, record) => sum + (record.overtimeHours || 0),
+                          0,
+                        )
+                        .toFixed(2)}{" "}
+                      hrs
+                    </span>
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* Desktop Table View */}
+            {/* Desktop Table View - Simplified */}
             <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead style={{ background: "#020c4c" }}>
@@ -589,13 +600,16 @@ const Reports = () => {
                       Date
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                      Morning
+                      Punch In
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                      Afternoon
+                      Punch Out
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                      Total Hours
+                      Worked Hours
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                      Overtime
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                       Status
@@ -604,10 +618,7 @@ const Reports = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {attendance.map((record, index) => (
-                    <tr
-                      key={index}
-                      className="hover:bg-gray-50 transition-colors"
-                    >
+                    <tr key={index} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
@@ -618,44 +629,29 @@ const Reports = () => {
                           </div>
                           <div className="ml-3">
                             <div className="text-sm font-medium text-gray-900">
-                              {record.userId?.firstName}{" "}
-                              {record.userId?.lastName}
+                              {record.userId?.firstName} {record.userId?.lastName}
                             </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {new Date(record.date).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
+                        {new Date(record.date).toLocaleDateString()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            record.morningSession?.isPresent
-                              ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
-                          }`}
-                        >
-                          {record.morningSession?.isPresent
-                            ? "Present"
-                            : "Absent"}
-                        </span>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-mono">
+                        {record.punchIn
+                          ? new Date(record.punchIn).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "--:--"}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                            record.afternoonSession?.isPresent
-                              ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
-                          }`}
-                        >
-                          {record.afternoonSession?.isPresent
-                            ? "Present"
-                            : "Absent"}
-                        </span>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-mono">
+                        {record.punchOut
+                          ? new Date(record.punchOut).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "--:--"}
                       </td>
                       <td
                         className="px-6 py-4 whitespace-nowrap font-mono text-sm font-medium"
@@ -663,23 +659,22 @@ const Reports = () => {
                       >
                         {record.totalWorkedHours?.toFixed(2)} hrs
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap font-mono text-sm">
+                        {record.overtimeHours > 0 ? (
+                          <span className="text-orange-600 font-medium">
+                            +{record.overtimeHours?.toFixed(2)} hrs
+                          </span>
+                        ) : (
+                          "0 hrs"
+                        )}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
-                          className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            record.morningSession?.isPresent &&
-                            record.afternoonSession?.isPresent
-                              ? "bg-green-100 text-green-800"
-                              : record.morningSession?.isPresent ||
-                                  record.afternoonSession?.isPresent
-                                ? "bg-yellow-100 text-yellow-800"
-                                : "bg-red-100 text-red-800"
-                          }`}
+                          className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(record.status)}`}
                         >
-                          {record.morningSession?.isPresent &&
-                          record.afternoonSession?.isPresent
+                          {record.status === "present"
                             ? "Present"
-                            : record.morningSession?.isPresent ||
-                                record.afternoonSession?.isPresent
+                            : record.status === "half-day"
                               ? "Half Day"
                               : "Absent"}
                         </span>
@@ -690,13 +685,10 @@ const Reports = () => {
               </table>
             </div>
 
-            {/* Mobile Card View */}
+            {/* Mobile Card View - Simplified */}
             <div className="md:hidden divide-y divide-gray-200">
               {attendance.map((record, index) => (
-                <div
-                  key={index}
-                  className="p-4 hover:bg-gray-50 transition-colors"
-                >
+                <div key={index} className="p-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center mb-2">
@@ -711,66 +703,48 @@ const Reports = () => {
                             {record.userId?.firstName} {record.userId?.lastName}
                           </p>
                           <p className="text-xs text-gray-500 mt-0.5">
-                            {new Date(record.date).toLocaleDateString("en-US", {
-                              weekday: "short",
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric",
-                            })}
+                            {new Date(record.date).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
 
-                      <div className="flex justify-between items-center mt-2">
-                        <div className="space-y-1">
-                          <div className="flex items-center space-x-4">
-                            <span className="text-xs text-gray-500">
-                              Morning:
-                            </span>
-                            <span
-                              className={`text-xs font-medium ${
-                                record.morningSession?.isPresent
-                                  ? "text-green-600"
-                                  : "text-red-600"
-                              }`}
-                            >
-                              {record.morningSession?.isPresent
-                                ? "✓ Present"
-                                : "✗ Absent"}
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-4">
-                            <span className="text-xs text-gray-500">
-                              Afternoon:
-                            </span>
-                            <span
-                              className={`text-xs font-medium ${
-                                record.afternoonSession?.isPresent
-                                  ? "text-green-600"
-                                  : "text-red-600"
-                              }`}
-                            >
-                              {record.afternoonSession?.isPresent
-                                ? "✓ Present"
-                                : "✗ Absent"}
-                            </span>
-                          </div>
+                      <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
+                        <div>
+                          <p className="text-xs text-gray-500">Punch In</p>
+                          <p className="font-mono text-sm">
+                            {record.punchIn
+                              ? new Date(record.punchIn).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
+                              : "--:--"}
+                          </p>
                         </div>
-                        <button
-                          onClick={() => toggleRecordExpand(index)}
-                          className="text-xs text-blue-600 font-medium"
-                        >
-                          {expandedRecord === index ? "Less" : "More"}
-                        </button>
+                        <div>
+                          <p className="text-xs text-gray-500">Punch Out</p>
+                          <p className="font-mono text-sm">
+                            {record.punchOut
+                              ? new Date(record.punchOut).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
+                              : "--:--"}
+                          </p>
+                        </div>
                       </div>
 
+                      <button
+                        onClick={() => toggleRecordExpand(index)}
+                        className="mt-2 text-xs text-blue-600 font-medium"
+                      >
+                        {expandedRecord === index ? "Show Less" : "Show More"}
+                      </button>
+
                       {expandedRecord === index && (
-                        <div className="mt-3 pt-3 border-t border-gray-100 animate-slideDown">
-                          <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="mt-3 pt-3 border-t border-gray-100">
+                          <div className="grid grid-cols-2 gap-2">
                             <div>
-                              <p className="text-xs text-gray-500">
-                                Total Hours
-                              </p>
+                              <p className="text-xs text-gray-500">Worked Hours</p>
                               <p
                                 className="font-semibold"
                                 style={{ color: "#020c4c" }}
@@ -779,6 +753,12 @@ const Reports = () => {
                               </p>
                             </div>
                             <div>
+                              <p className="text-xs text-gray-500">Overtime</p>
+                              <p className="font-semibold text-orange-600">
+                                {record.overtimeHours?.toFixed(2) || "0"} hrs
+                              </p>
+                            </div>
+                            <div className="col-span-2">
                               <p className="text-xs text-gray-500">Status</p>
                               <span
                                 className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${getStatusBadge(record.status)}`}
@@ -811,40 +791,19 @@ const Reports = () => {
                 <div>
                   <p className="text-gray-500">Present Days</p>
                   <p className="font-semibold text-green-600">
-                    {
-                      attendance.filter((r) => {
-                        const morningPresent = r.morningSession?.isPresent;
-                        const afternoonPresent = r.afternoonSession?.isPresent;
-                        return morningPresent && afternoonPresent;
-                      }).length
-                    }
+                    {attendance.filter((r) => r.status === "present").length}
                   </p>
                 </div>
                 <div>
                   <p className="text-gray-500">Half Days</p>
                   <p className="font-semibold text-yellow-600">
-                    {
-                      attendance.filter((r) => {
-                        const morningPresent = r.morningSession?.isPresent;
-                        const afternoonPresent = r.afternoonSession?.isPresent;
-                        return (
-                          (morningPresent || afternoonPresent) &&
-                          !(morningPresent && afternoonPresent)
-                        );
-                      }).length
-                    }
+                    {attendance.filter((r) => r.status === "half-day").length}
                   </p>
                 </div>
                 <div>
                   <p className="text-gray-500">Absent Days</p>
                   <p className="font-semibold text-red-600">
-                    {
-                      attendance.filter((r) => {
-                        const morningPresent = r.morningSession?.isPresent;
-                        const afternoonPresent = r.afternoonSession?.isPresent;
-                        return !morningPresent && !afternoonPresent;
-                      }).length
-                    }
+                    {attendance.filter((r) => r.status === "absent").length}
                   </p>
                 </div>
               </div>
@@ -876,6 +835,7 @@ const Reports = () => {
           </div>
         )}
       </div>
+
       <ConfirmModal
         isOpen={showReportConfirm}
         onClose={handleCancelReport}
