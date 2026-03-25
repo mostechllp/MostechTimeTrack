@@ -83,12 +83,18 @@ const Header = () => {
               <div className="hidden md:flex items-center space-x-4">
                 {user.role !== "admin" && (
                   <div className="flex items-center space-x-2 px-3 py-1.5 bg-white/10 rounded-full backdrop-blur-sm">
-                    {user.profileImage && (
+                    {user.profileImage &&
+                    user.profileImage !== "default-profile.png" ? (
                       <img
                         src={user.profileImage}
                         alt="Profile"
                         className="h-6 w-6 rounded-full object-cover"
+                        onError={(e) => {
+                          e.target.style.display = "none";
+                        }}
                       />
+                    ) : (
+                      <UserCircleIcon className="h-6 w-6 text-blue-500" />
                     )}
                     <span className="text-sm font-medium text-black">
                       {user.email}
@@ -164,7 +170,19 @@ const Header = () => {
               {/* Mobile User Info and Logout */}
               <div className="pt-4 mt-2 border-t border-gray-700">
                 <div className="flex items-center space-x-2 px-4 py-2 bg-white/5 rounded-lg mb-3">
-                  <UserCircleIcon className="h-6 w-6 text-blue-500" />
+                  {user.profileImage &&
+                  user.profileImage !== "default-profile.png" ? (
+                    <img
+                      src={user.profileImage}
+                      alt="Profile"
+                      className="h-6 w-6 rounded-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = "none";
+                      }}
+                    />
+                  ) : (
+                    <UserCircleIcon className="h-6 w-6 text-blue-500" />
+                  )}
                   <span className="text-sm text-black break-all">
                     {user.email}
                   </span>

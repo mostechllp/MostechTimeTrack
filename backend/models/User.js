@@ -21,7 +21,7 @@ const userSchema = new mongoose.Schema({
   lastName: String,
   profileImage: {
     type: String,
-    default: 'default-profile.png'
+    default: null
   },
   isFirstLogin: {
     type: Boolean,
