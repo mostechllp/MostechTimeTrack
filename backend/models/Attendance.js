@@ -8,25 +8,26 @@ const attendanceSchema = new mongoose.Schema({
   },
   date: {
     type: Date,
-    default: Date.now,
-    required: true
+    required: true,
+    default: () => {
+      const date = new Date();
+      date.setHours(0, 0, 0, 0);
+      return date;
+    }
   },
-  morningSession: {
-    punchIn: Date,
-    punchOut: Date,
-    isPresent: { type: Boolean, default: false }
+  punchIn: {
+    type: Date,
+    default: null
   },
-  afternoonSession: {
-    punchIn: Date,
-    punchOut: Date,
-    isPresent: { type: Boolean, default: false }
+  punchOut: {
+    type: Date,
+    default: null
   },
-  breaks: [{
-    breakStart: Date,
-    breakEnd: Date,
-    duration: Number // in minutes
-  }],
   totalWorkedHours: {
+    type: Number,
+    default: 0
+  },
+  overtimeHours: {
     type: Number,
     default: 0
   },
@@ -34,17 +35,43 @@ const attendanceSchema = new mongoose.Schema({
     type: String,
     enum: ['present', 'absent', 'half-day'],
     default: 'absent'
-  }
+  },
+  breaks: [{
+    breakStart: Date,
+    breakEnd: Date,
+    duration: Number
+  }]
 });
 
+// Pre-save hook to calculate hours
 attendanceSchema.pre('save', function() {
-  if (this.date) {
-    const d = new Date(this.date);
-    d.setHours(0, 0, 0, 0);
-    this.date = d;
+  if (this.punchIn && this.punchOut) {
+    let totalMs = this.punchOut - this.punchIn;
+    
+    // Subtract break times
+    if (this.breaks && this.breaks.length > 0) {
+      this.breaks.forEach(breakPeriod => {
+        if (breakPeriod.breakEnd) {
+          totalMs -= (breakPeriod.breakEnd - breakPeriod.breakStart);
+        }
+      });
+    }
+    
+    const totalHours = totalMs / (1000 * 60 * 60);
+    this.totalWorkedHours = parseFloat(totalHours.toFixed(2));
+    
+    // Calculate overtime (more than 9 hours)
+    if (this.totalWorkedHours > 9) {
+      this.overtimeHours = parseFloat((this.totalWorkedHours - 9).toFixed(2));
+      this.status = 'present';
+    } else if (this.totalWorkedHours >= 4) {
+      this.status = 'present';
+    } else if (this.totalWorkedHours > 0) {
+      this.status = 'half-day';
+    } else {
+      this.status = 'absent';
+    }
   }
 });
-
-attendanceSchema.index({ userId: 1, date: 1 }, { unique: true });
 
 module.exports = mongoose.model('Attendance', attendanceSchema);

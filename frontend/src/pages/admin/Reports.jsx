@@ -208,237 +208,244 @@ const Reports = () => {
   };
 
   const downloadPDF = () => {
-  try {
-    const doc = new jsPDF();
-    const monthName = new Date(selectedYear, selectedMonth - 1).toLocaleString('default', { month: 'long' });
-    
-    const addLogoAndGenerate = () => {
-      const img = new Image();
-      img.crossOrigin = 'Anonymous';
-      img.src = '/src/assets/logo.png';
-      
-      img.onload = () => {
-        try {
-          const maxHeight = 20;
-          const maxWidth = 40;
-          
-          const originalWidth = img.width;
-          const originalHeight = img.height;
-          
-          let newWidth = maxHeight;
-          let newHeight = maxHeight;
-          
-          if (originalWidth > originalHeight) {
-            newWidth = (originalWidth / originalHeight) * maxHeight;
-            if (newWidth > maxWidth) {
-              newWidth = maxWidth;
-              newHeight = (originalHeight / originalWidth) * maxWidth;
+    try {
+      const doc = new jsPDF();
+      const monthName = new Date(
+        selectedYear,
+        selectedMonth - 1,
+      ).toLocaleString("default", { month: "long" });
+
+      const addLogoAndGenerate = () => {
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.src = "/src/assets/logo.png";
+
+        img.onload = () => {
+          try {
+            const maxHeight = 20;
+            const maxWidth = 40;
+
+            const originalWidth = img.width;
+            const originalHeight = img.height;
+
+            let newWidth = maxHeight;
+            let newHeight = maxHeight;
+
+            if (originalWidth > originalHeight) {
+              newWidth = (originalWidth / originalHeight) * maxHeight;
+              if (newWidth > maxWidth) {
+                newWidth = maxWidth;
+                newHeight = (originalHeight / originalWidth) * maxWidth;
+              }
+            } else {
+              newHeight = (originalHeight / originalWidth) * newWidth;
             }
-          } else {
-            newHeight = (originalHeight / originalWidth) * newWidth;
+            doc.addImage(img, "PNG", 14, 8, newWidth, newHeight);
+            generateReportContent(doc, monthName, true);
+          } catch (err) {
+            console.log("Logo error, generating without logo:", err);
+            generateReportContent(doc, monthName, false);
           }
-          doc.addImage(img, 'PNG', 14, 8, newWidth, newHeight);
-          generateReportContent(doc, monthName, true);
-        } catch (err) {
-          console.log('Logo error, generating without logo:', err);
-          generateReportContent(doc, monthName, false);
-        }
-      };
-      
-      img.onerror = () => {
-        console.log('Logo not found, generating without logo');
-        generateReportContent(doc, monthName, false);
-      };
-      
-      setTimeout(() => {
-        if (img.complete === false) {
-          generateReportContent(doc, monthName, false);
-        }
-      }, 1000);
-    };
-    
-    addLogoAndGenerate();
-    
-  } catch (error) {
-    console.error('PDF Generation Error:', error);
-    toast.error('Failed to generate PDF');
-  }
-};
+        };
 
-const generateReportContent = (doc, monthName, hasLogo) => {
-  try {
-    const startY = hasLogo ? 35 : 25;
-    
-    // Company Name
-    if (hasLogo) {
-      doc.setFontSize(16);
-      doc.setTextColor(2, 12, 76);
-    } else {
-      doc.setFontSize(18);
-      doc.setTextColor(2, 12, 76);
-      doc.text('Mostech Business Solutions', 14, 20);
+        img.onerror = () => {
+          console.log("Logo not found, generating without logo");
+          generateReportContent(doc, monthName, false);
+        };
+
+        setTimeout(() => {
+          if (img.complete === false) {
+            generateReportContent(doc, monthName, false);
+          }
+        }, 1000);
+      };
+
+      addLogoAndGenerate();
+    } catch (error) {
+      console.error("PDF Generation Error:", error);
+      toast.error("Failed to generate PDF");
     }
-    
-    // Title
-    doc.setFontSize(14);
-    doc.setTextColor(0, 0, 0);
-    doc.text('Monthly Attendance Report', 14, startY);
-    
-    // Report info
-    doc.setFontSize(9);
-    doc.setTextColor(100, 100, 100);
-    doc.text(`Month: ${monthName} ${selectedYear}`, 14, startY + 8);
-    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, startY + 14);
-    doc.text(`Total Records: ${attendance.length}`, 14, startY + 20);
-    
-    if (attendance.length === 0) {
-      doc.text('No completed attendance records found', 14, startY + 30);
+  };
+
+  const generateReportContent = (doc, monthName, hasLogo) => {
+    try {
+      const startY = hasLogo ? 35 : 25;
+
+      // Company Name
+      if (hasLogo) {
+        doc.setFontSize(16);
+        doc.setTextColor(2, 12, 76);
+      } else {
+        doc.setFontSize(18);
+        doc.setTextColor(2, 12, 76);
+        doc.text("Mostech Business Solutions", 14, 20);
+      }
+
+      // Title
+      doc.setFontSize(14);
+      doc.setTextColor(0, 0, 0);
+      doc.text("Monthly Attendance Report", 14, startY);
+
+      // Report info
+      doc.setFontSize(9);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Month: ${monthName} ${selectedYear}`, 14, startY + 8);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, 14, startY + 14);
+      doc.text(`Total Records: ${attendance.length}`, 14, startY + 20);
+
+      if (attendance.length === 0) {
+        doc.text("No completed attendance records found", 14, startY + 30);
+        doc.save(`attendance_${monthName}_${selectedYear}.pdf`);
+        toast.success("PDF downloaded successfully");
+        return;
+      }
+
+      // Prepare table data with CORRECT status calculation
+      const tableColumn = [
+        "Staff Name",
+        "Date",
+        "Punch In",
+        "Punch Out",
+        "Worked Hours",
+        "Overtime",
+        "Status",
+      ];
+
+      const tableRows = [];
+      const rowStatuses = []; // Track status for each row
+
+      attendance.forEach((item) => {
+        const staffName =
+          `${item.userId?.firstName || ""} ${item.userId?.lastName || ""}`.trim() ||
+          "Unknown";
+        const date = new Date(item.date).toLocaleDateString();
+        const punchIn = item.punchIn
+          ? new Date(item.punchIn).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "--:--";
+        const punchOut = item.punchOut
+          ? new Date(item.punchOut).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "--:--";
+        const hours = item.totalWorkedHours?.toFixed(2) || "0";
+        const overtime = item.overtimeHours?.toFixed(2) || "0";
+
+        let statusText;
+        if (item.status === "present") statusText = "Present";
+        else if (item.status === "half-day") statusText = "Half Day";
+        else statusText = "Absent";
+
+        tableRows.push([
+          staffName,
+          date,
+          punchIn,
+          punchOut,
+          hours,
+          overtime,
+          statusText,
+        ]);
+      });
+
+      // Calculate summary based on CORRECT status
+      let presentCount = 0;
+      let halfDayCount = 0;
+      let absentCount = 0;
+      let totalHoursSum = 0;
+
+      attendance.forEach((item) => {
+        const morningPresent = item.morningSession?.isPresent;
+        const afternoonPresent = item.afternoonSession?.isPresent;
+
+        if (morningPresent && afternoonPresent) {
+          presentCount++;
+        } else if (morningPresent || afternoonPresent) {
+          halfDayCount++;
+        } else {
+          absentCount++;
+        }
+        totalHoursSum += item.totalWorkedHours || 0;
+      });
+
+      // Generate table using autoTable with conditional row coloring for absent only
+      autoTable(doc, {
+        head: [tableColumn],
+        body: tableRows,
+        startY: startY + 25,
+        margin: { left: 10, right: 10 },
+        styles: {
+          fontSize: 7,
+          cellPadding: 2,
+          lineColor: [200, 200, 200],
+          lineWidth: 0.1,
+        },
+        headStyles: {
+          fillColor: [2, 12, 76],
+          textColor: [255, 255, 255],
+          fontStyle: "bold",
+          halign: "center",
+        },
+        alternateRowStyles: {
+          fillColor: [248, 248, 248],
+        },
+        // Add conditional row coloring for absent days only
+        didParseCell: function (data) {
+          // Only color rows where status is 'absent'
+          if (data.row.index >= 0 && rowStatuses[data.row.index] === "absent") {
+            data.cell.styles.fillColor = [255, 200, 200]; // Light red for absent rows
+            // Optional: also change text color for absent rows
+            data.cell.styles.textColor = [139, 0, 0]; // Dark red text
+          }
+        },
+        columnStyles: {
+          0: { cellWidth: 32 },
+          1: { cellWidth: 22 },
+          2: { cellWidth: 22 },
+          3: { cellWidth: 22 },
+          4: { cellWidth: 25 },
+          5: { cellWidth: 25 },
+          6: { cellWidth: 18 },
+          7: { cellWidth: 22 },
+        },
+      });
+
+      // Add summary with CORRECT counts
+      const finalY = doc.lastAutoTable?.finalY || doc.autoTableEndPosY || 200;
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+
+      doc.text(
+        `Summary: ${presentCount} Present, ${halfDayCount} Half Day, ${absentCount} Absent`,
+        14,
+        finalY + 8,
+      );
+      doc.text(
+        `Total Hours Worked: ${totalHoursSum.toFixed(2)} hrs`,
+        14,
+        finalY + 14,
+      );
+
+      // Footer
+      doc.setFontSize(7);
+      doc.setTextColor(150, 150, 150);
+      doc.text(
+        "Generated by Mostech Business Solutions Attendance System",
+        105,
+        finalY + 25,
+        { align: "center" },
+      );
+
+      // Save the PDF
       doc.save(`attendance_${monthName}_${selectedYear}.pdf`);
-      toast.success('PDF downloaded successfully');
-      return;
+      toast.success("PDF downloaded successfully");
+    } catch (error) {
+      console.error("Error generating report content:", error);
+      toast.error("Failed to generate PDF: " + error.message);
     }
-    
-    // Prepare table data with CORRECT status calculation
-    const tableColumn = [
-      "Staff Name", 
-      "Date", 
-      "Morning Start", 
-      "Morning End", 
-      "Afternoon Start", 
-      "Afternoon End", 
-      "Total Hours", 
-      "Status"
-    ];
-    const tableRows = [];
-    const rowStatuses = []; // Track status for each row
-
-    attendance.forEach(item => {
-      const staffName = `${item.userId?.firstName || ''} ${item.userId?.lastName || ''}`.trim() || 'Unknown';
-      const date = new Date(item.date).toLocaleDateString();
-      
-      // Morning session details
-      const morningStart = item.morningSession?.punchIn 
-        ? new Date(item.morningSession.punchIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        : '--:--';
-      const morningEnd = item.morningSession?.punchOut 
-        ? new Date(item.morningSession.punchOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        : '--:--';
-      
-      // Afternoon session details
-      const afternoonStart = item.afternoonSession?.punchIn 
-        ? new Date(item.afternoonSession.punchIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        : '--:--';
-      const afternoonEnd = item.afternoonSession?.punchOut 
-        ? new Date(item.afternoonSession.punchOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        : '--:--';
-      
-      const hours = item.totalWorkedHours?.toFixed(2) || '0';
-      
-      // CORRECT STATUS CALCULATION - based on session presence, not database status
-      const morningPresent = item.morningSession?.isPresent;
-      const afternoonPresent = item.afternoonSession?.isPresent;
-      
-      let statusText;
-      let statusType;
-      if (morningPresent && afternoonPresent) {
-        statusText = 'Present';
-        statusType = 'present';
-      } else if (morningPresent || afternoonPresent) {
-        statusText = 'Half Day';
-        statusType = 'half-day';
-      } else {
-        statusText = 'Absent';
-        statusType = 'absent';
-      }
-      
-      tableRows.push([staffName, date, morningStart, morningEnd, afternoonStart, afternoonEnd, hours, statusText]);
-      rowStatuses.push(statusType);
-    });
-
-    // Calculate summary based on CORRECT status
-    let presentCount = 0;
-    let halfDayCount = 0;
-    let absentCount = 0;
-    let totalHoursSum = 0;
-    
-    attendance.forEach(item => {
-      const morningPresent = item.morningSession?.isPresent;
-      const afternoonPresent = item.afternoonSession?.isPresent;
-      
-      if (morningPresent && afternoonPresent) {
-        presentCount++;
-      } else if (morningPresent || afternoonPresent) {
-        halfDayCount++;
-      } else {
-        absentCount++;
-      }
-      totalHoursSum += item.totalWorkedHours || 0;
-    });
-
-    // Generate table using autoTable with conditional row coloring for absent only
-    autoTable(doc, {
-      head: [tableColumn],
-      body: tableRows,
-      startY: startY + 25,
-      margin: { left: 10, right: 10 },
-      styles: { 
-        fontSize: 7,
-        cellPadding: 2,
-        lineColor: [200, 200, 200],
-        lineWidth: 0.1
-      },
-      headStyles: { 
-        fillColor: [2, 12, 76],
-        textColor: [255, 255, 255],
-        fontStyle: 'bold',
-        halign: 'center'
-      },
-      alternateRowStyles: { 
-        fillColor: [248, 248, 248]
-      },
-      // Add conditional row coloring for absent days only
-      didParseCell: function(data) {
-        // Only color rows where status is 'absent'
-        if (data.row.index >= 0 && rowStatuses[data.row.index] === 'absent') {
-          data.cell.styles.fillColor = [255, 200, 200]; // Light red for absent rows
-          // Optional: also change text color for absent rows
-          data.cell.styles.textColor = [139, 0, 0]; // Dark red text
-        }
-      },
-      columnStyles: {
-        0: { cellWidth: 32 },
-        1: { cellWidth: 22 },
-        2: { cellWidth: 22 },
-        3: { cellWidth: 22 },
-        4: { cellWidth: 25 },
-        5: { cellWidth: 25 },
-        6: { cellWidth: 18 },
-        7: { cellWidth: 22 }
-      }
-    });
-    
-    // Add summary with CORRECT counts
-    const finalY = doc.lastAutoTable?.finalY || doc.autoTableEndPosY || 200;
-    doc.setFontSize(8);
-    doc.setTextColor(100, 100, 100);
-    
-    doc.text(`Summary: ${presentCount} Present, ${halfDayCount} Half Day, ${absentCount} Absent`, 14, finalY + 8);
-    doc.text(`Total Hours Worked: ${totalHoursSum.toFixed(2)} hrs`, 14, finalY + 14);
-    
-    // Footer
-    doc.setFontSize(7);
-    doc.setTextColor(150, 150, 150);
-    doc.text('Generated by Mostech Business Solutions Attendance System', 105, finalY + 25, { align: 'center' });
-    
-    // Save the PDF
-    doc.save(`attendance_${monthName}_${selectedYear}.pdf`);
-    toast.success('PDF downloaded successfully');
-    
-  } catch (error) {
-    console.error('Error generating report content:', error);
-    toast.error('Failed to generate PDF: ' + error.message);
-  }
-};
+  };
 
   const getStatusBadge = (status) => {
     switch (status) {

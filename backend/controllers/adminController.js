@@ -117,13 +117,11 @@ const getMonthlyReport = async (req, res) => {
     const { month, year, staffId } = req.query;
     const now = new Date();
     const currentHour = now.getHours();
-    const currentDay = now.getDay(); // 0 = Sunday, 6 = Saturday
+    const currentDay = now.getDay();
     
-    // Create date range
     const startDate = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
     const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
 
-    // Build query
     const query = {
       date: {
         $gte: startDate,
@@ -135,7 +133,6 @@ const getMonthlyReport = async (req, res) => {
       query.userId = staffId;
     }
 
-    // Get all attendance records
     const attendance = await Attendance.find(query)
       .populate({
         path: 'userId',
@@ -155,40 +152,14 @@ const getMonthlyReport = async (req, res) => {
       const recordDate = new Date(record.date);
       recordDate.setHours(0, 0, 0, 0);
       
-      // Check if this is today's record
       if (recordDate.getTime() === today.getTime()) {
-        const recordCopy = record.toObject();
-        
-        // Determine if day is complete based on day type and current time
         const isDayComplete = isDayCompleteCheck(now, currentDay, currentHour);
-        
-        if (!isDayComplete) {
-          // Day is not complete - mark as "incomplete" or filter out
-          return null;
-        }
-        
-        return record;
+        if (!isDayComplete) return null;
       }
-      
       return record;
-    }).filter(record => record !== null); // Remove null entries (incomplete days)
+    }).filter(record => record !== null);
 
-    // Group by user and date to remove duplicates
-    const uniqueRecords = [];
-    const seen = new Set();
-
-    validAttendance.forEach(record => {
-      const dateStr = record.date.toISOString().split('T')[0];
-      const key = `${record.userId._id}-${dateStr}`;
-      
-      if (!seen.has(key)) {
-        seen.add(key);
-        uniqueRecords.push(record);
-      }
-    });
-
-    res.json(uniqueRecords);
-    
+    res.json(validAttendance);
   } catch (error) {
     console.error('Error in getMonthlyReport:', error);
     res.status(500).json({ message: 'Server error' });
