@@ -12,7 +12,10 @@ const {
   cleanupOldRejectedLeaves,
   getLiveAttendance,
   autoApproveLeaves,
-  getPendingExpiringLeaves
+  getPendingExpiringLeaves,
+  updateStaff,
+  deleteStaff,
+  restoreStaff
 } = require('../controllers/adminController');
 const { getAllReports, getUserReports } = require('../controllers/reportController');
 
@@ -26,6 +29,9 @@ router.get('/dashboard/attendance-summary', getAttendanceSummary);
 // Staff management
 router.post('/create-staff', createStaff);
 router.get('/staff', getAllStaff);
+router.put('/staff/:id', updateStaff);
+router.delete('/staff/:id', deleteStaff);
+router.put('/staff/:id/restore', restoreStaff);
 
 // Reports
 router.get('/reports/monthly', getMonthlyReport);

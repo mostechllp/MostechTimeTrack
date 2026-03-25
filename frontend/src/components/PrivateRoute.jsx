@@ -10,7 +10,7 @@ const PrivateRoute = ({ children, adminOnly = false }) => {
   }
 
   if (!user) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/time-tracker/login" />;
   }
 
   if (adminOnly && user.role !== 'admin') {

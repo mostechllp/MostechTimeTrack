@@ -4,7 +4,7 @@ import axios from 'axios';
 const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_BACKEND_URL,
   withCredentials: true,
-   headers: {
+  headers: {
     'Content-Type': 'application/json',
   },
 });
@@ -12,6 +12,11 @@ const axiosInstance = axios.create({
 // Request interceptor to add token to every request
 axiosInstance.interceptors.request.use(
   (config) => {
+    // Skip adding token for login endpoint
+    if (config.url.includes('/auth/login')) {
+      return config;
+    }
+    
     const userInfo = localStorage.getItem('userInfo');
     if (userInfo) {
       const user = JSON.parse(userInfo);
@@ -30,10 +35,17 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Don't redirect for login endpoint errors
+    if (error.config?.url?.includes('/auth/login')) {
+      return Promise.reject(error);
+    }
+    
     if (error.response?.status === 401) {
       // Unauthorized - clear local storage and redirect to login
       localStorage.removeItem('userInfo');
-      window.location.href = '/login';
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/time-tracker/login';
+      }
     }
     return Promise.reject(error);
   }

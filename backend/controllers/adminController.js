@@ -94,14 +94,145 @@ const createStaff = async (req, res) => {
   }
 };
 
-// @desc    Get all staff
-// @route   GET /api/admin/staff
+// @desc    Soft delete a staff member
+// @route   DELETE /api/admin/staff/:id
+const deleteStaff = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const staff = await User.findById(id);
+    
+    if (!staff) {
+      return res.status(404).json({ message: 'Staff member not found' });
+    }
+    
+    if (staff.role === 'admin') {
+      return res.status(403).json({ message: 'Cannot delete admin users' });
+    }
+    
+    // Soft delete - mark as deleted
+    staff.isDeleted = true;
+    staff.deletedAt = new Date();
+    await staff.save();
+    
+    res.json({ 
+      success: true, 
+      message: 'Staff member deleted successfully',
+      staff: {
+        _id: staff._id,
+        firstName: staff.firstName,
+        lastName: staff.lastName,
+        email: staff.email,
+        isDeleted: staff.isDeleted
+      }
+    });
+  } catch (error) {
+    console.error('Error in deleteStaff:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Restore a soft-deleted staff member
+// @route   PUT /api/admin/staff/:id/restore
+const restoreStaff = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const staff = await User.findById(id);
+    
+    if (!staff) {
+      return res.status(404).json({ message: 'Staff member not found' });
+    }
+    
+    if (!staff.isDeleted) {
+      return res.status(400).json({ message: 'Staff member is not deleted' });
+    }
+    
+    // Restore - unmark deleted
+    staff.isDeleted = false;
+    staff.deletedAt = null;
+    await staff.save();
+    
+    res.json({ 
+      success: true, 
+      message: 'Staff member restored successfully',
+      staff: {
+        _id: staff._id,
+        firstName: staff.firstName,
+        lastName: staff.lastName,
+        email: staff.email
+      }
+    });
+  } catch (error) {
+    console.error('Error in restoreStaff:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Update staff member details
+// @route   PUT /api/admin/staff/:id
+const updateStaff = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { firstName, lastName, email, joiningDate } = req.body;
+    
+    const staff = await User.findById(id);
+    
+    if (!staff) {
+      return res.status(404).json({ message: 'Staff member not found' });
+    }
+    
+    if (staff.role === 'admin') {
+      return res.status(403).json({ message: 'Cannot modify admin users' });
+    }
+    
+    // Update fields
+    if (firstName) staff.firstName = firstName;
+    if (lastName) staff.lastName = lastName;
+    if (email) staff.email = email;
+    if (joiningDate) {
+      const parsedDate = new Date(joiningDate);
+      parsedDate.setHours(0, 0, 0, 0);
+      staff.joiningDate = parsedDate;
+    }
+    
+    await staff.save();
+    
+    res.json({ 
+      success: true, 
+      message: 'Staff member updated successfully',
+      staff: {
+        _id: staff._id,
+        firstName: staff.firstName,
+        lastName: staff.lastName,
+        email: staff.email,
+        joiningDate: staff.joiningDate,
+        isDeleted: staff.isDeleted
+      }
+    });
+  } catch (error) {
+    console.error('Error in updateStaff:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Get all staff (including soft-deleted if requested)
+// @route   GET /api/admin/staff?includeDeleted=false
 const getAllStaff = async (req, res) => {
   try {
-    const staff = await User.find({ role: "staff" }).select("-password");
+    const { includeDeleted = 'false' } = req.query;
+    const query = { role: 'staff' };
+    
+    // Only show non-deleted staff by default
+    if (includeDeleted !== 'true') {
+      query.isDeleted = false;
+    }
+    
+    const staff = await User.find(query).select('-password').sort({ createdAt: -1 });
     res.json(staff);
   } catch (error) {
-    res.status(500).json({ message: "Server error" });
+    console.error('Error in getAllStaff:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -704,6 +835,9 @@ const getPendingExpiringLeaves = async (req, res) => {
 
 module.exports = {
   createStaff,
+  deleteStaff,
+  restoreStaff,
+  updateStaff,
   getAllStaff,
   getMonthlyReport,
   getLeaveRequests,
