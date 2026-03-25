@@ -12,79 +12,6 @@ import axiosInstance from "../../utils/axiosConfig";
 import toast from "react-hot-toast";
 import ConfirmModal from "../../components/resuable/ConfirmModal";
 
-// Active Staff Today Section
-const ActiveStaffToday = () => {
-  const [activeStaff, setActiveStaff] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [, setLastUpdated] = useState(new Date());
-
-  useEffect(() => {
-    fetchActiveStaff();
-    const interval = setInterval(fetchActiveStaff, 30000); // Refresh every 30 seconds
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchActiveStaff = async () => {
-    try {
-      const { data } = await axiosInstance.get("/admin/reports/live");
-      const active = data.records.filter((r) => r.isActive);
-      setActiveStaff(active);
-      setLastUpdated(new Date());
-    } catch (error) {
-      console.error("Error fetching active staff:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="bg-white rounded-xl shadow-lg p-4 mb-6">
-        <div className="flex items-center space-x-2">
-          <div
-            className="animate-spin rounded-full h-4 w-4 border-b-2"
-            style={{ borderColor: "#020c4c" }}
-          ></div>
-          <span className="text-sm text-gray-500">Loading active staff...</span>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-white rounded-xl shadow-lg p-4 mb-6">
-
-      <div className="flex flex-wrap gap-2">
-        {activeStaff.map((staff) => (
-          <div
-            key={staff._id}
-            className="flex items-center space-x-1 px-2 py-1 bg-green-50 rounded-full"
-          >
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-sm text-green-800">
-              {staff.userId?.firstName} {staff.userId?.lastName}
-            </span>
-          </div>
-        ))}
-        {activeStaff.length === 0 && (
-          <div className="flex items-center space-x-2 text-gray-500">
-            <ClockIcon className="h-4 w-4" />
-            <p className="text-sm">No one is currently working</p>
-          </div>
-        )}
-      </div>
-
-      {activeStaff.length > 0 && (
-        <div className="mt-3 pt-2 border-t border-gray-100">
-          <p className="text-xs text-gray-400">
-            Click refresh if you don't see updates
-          </p>
-        </div>
-      )}
-    </div>
-  );
-};
-
 const Reports = () => {
   const [staff, setStaff] = useState([]);
   const [attendance, setAttendance] = useState([]);
@@ -493,9 +420,6 @@ const Reports = () => {
             </p>
           </div>
         </div>
-
-        {/* === ADD THE ACTIVE STAFF COMPONENT HERE === */}
-        <ActiveStaffToday />
 
         {/* Mobile Filter Toggle Button */}
         <div className="md:hidden mb-4">
