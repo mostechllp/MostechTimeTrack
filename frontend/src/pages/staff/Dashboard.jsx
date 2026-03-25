@@ -215,7 +215,7 @@ const StaffDashboard = () => {
     }
   };
 
-  const handleReportSubmit = async (reportData) => {
+  const handleReportSubmit = useCallback(async (reportData) => {
     const response = await axiosInstance.post("/staff/reports", {
       ...reportData,
       date: new Date().toISOString(),
@@ -223,7 +223,7 @@ const StaffDashboard = () => {
     setExistingReport(response.data);
     setHasSubmittedReport(true);
     return response.data;
-  };
+  }, []);
 
   if (loading) {
     return (
@@ -480,6 +480,7 @@ const StaffDashboard = () => {
         message="Are you sure you want to punch out?"
       />
       <ReportModal
+        key={existingReport?._id || "new"}
         isOpen={showReportModal}
         onClose={() => setShowReportModal(false)}
         date={new Date()}
