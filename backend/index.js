@@ -15,7 +15,8 @@ const app = express();
 const allowedOrigins = [
   'http://localhost:5173',
   'https://mostech-time-track-two.vercel.app',
-  'https://mostech.ae/time-tracker/',
+  'https://mostech.ae',
+  'https://mostech.ae/time-tracker',
   process.env.FRONTEND_URL
 ].filter(Boolean);
 
