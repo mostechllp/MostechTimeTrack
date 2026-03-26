@@ -312,7 +312,7 @@ const ReportModal = ({
                     <p className="text-gray-700 whitespace-pre-wrap">{existingReport.remarks}</p>
                     {existingReport.remarkAddedAt && (
                       <p className="text-xs text-blue-600 mt-2">
-                        Added on: {new Date(existingReport.remarkAddedAt).toLocaleString()}
+                        Last added on: {new Date(existingReport.remarkAddedAt).toLocaleString()}
                       </p>
                     )}
                   </div>

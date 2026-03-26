@@ -221,20 +221,15 @@ const updateStaff = async (req, res) => {
 const getAllStaff = async (req, res) => {
   try {
     const { includeInactive = 'false' } = req.query;
-    console.log('getAllStaff called with includeInactive:', includeInactive);
     
     // First, check total users in database
     const totalUsers = await User.countDocuments();
-    console.log('Total users in database:', totalUsers);
     
     const staffUsers = await User.countDocuments({ role: 'staff' });
-    console.log('Total staff users in database:', staffUsers);
     
     const activeStaffUsers = await User.countDocuments({ role: 'staff', isActive: true });
-    console.log('Active staff users:', activeStaffUsers);
     
     const inactiveStaffUsers = await User.countDocuments({ role: 'staff', isActive: false });
-    console.log('Inactive staff users:', inactiveStaffUsers);
     
     const query = { role: 'staff' };
     
@@ -243,30 +238,8 @@ const getAllStaff = async (req, res) => {
       query.isActive = true;
     }
     
-    console.log('Final query:', JSON.stringify(query, null, 2));
     
     const staff = await User.find(query).select('-password').sort({ createdAt: -1 });
-    
-    console.log(`Found ${staff.length} staff members`);
-    if (staff.length > 0) {
-      console.log('Staff data sample:', staff.map(s => ({ 
-        id: s._id,
-        email: s.email, 
-        isActive: s.isActive,
-        role: s.role
-      })));
-    } else {
-      console.log('No staff found with query');
-      
-      // Try to find any user to verify connection
-      const anyUser = await User.findOne();
-      console.log('Any user in DB:', anyUser ? {
-        id: anyUser._id,
-        email: anyUser.email,
-        role: anyUser.role
-      } : 'No users found at all');
-    }
-    
     res.json(staff);
   } catch (error) {
     console.error('Error in getAllStaff:', error);
@@ -283,8 +256,6 @@ const getMonthlyReport = async (req, res) => {
     const startDate = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
     const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
 
-    console.log('Fetching report for:', { month, year, staffId });
-    console.log('Date range:', startDate.toISOString(), 'to', endDate.toISOString());
 
     // Build query
     const query = {
@@ -307,12 +278,10 @@ const getMonthlyReport = async (req, res) => {
       })
       .sort({ date: 1, 'userId.firstName': 1 });
 
-    console.log(`Found ${attendance.length} total records`);
 
     // Filter out records where userId is null (deleted users)
     const validAttendance = attendance.filter(record => record.userId !== null);
 
-    console.log(`After filtering null users: ${validAttendance.length} records`);
     res.json(validAttendance);
     
   } catch (error) {

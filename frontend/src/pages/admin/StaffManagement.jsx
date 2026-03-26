@@ -47,22 +47,12 @@ const StaffManagement = () => {
 
   useEffect(() => {
     fetchStaff();
-    console.log("Active tab:", activeTab);
   }, [activeTab]);
 
   const fetchStaff = async () => {
     try {
       const { data } = await axiosInstance.get(
         `/admin/staff?includeInactive=true`,
-      );
-      console.log("All staff data:", data);
-      console.log(
-        "Active staff count:",
-        data.filter((m) => m.isActive === true).length,
-      );
-      console.log(
-        "Inactive staff count:",
-        data.filter((m) => m.isActive === false).length,
       );
       setStaff(data);
     } catch (error) {

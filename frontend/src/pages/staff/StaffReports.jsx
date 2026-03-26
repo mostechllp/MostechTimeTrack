@@ -480,7 +480,7 @@ const StaffDailyReports = () => {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4">
             {filteredReports.map((report) => (
               <div
                 key={report._id}
@@ -547,7 +547,7 @@ const StaffDailyReports = () => {
                         {report.remarkAddedAt && (
                           <p className="text-xs text-purple-500 mt-1 flex items-center space-x-1">
                             <ClockIcon className="h-3 w-3" />
-                            <span>Added: {formatRemarkDate(report.remarkAddedAt)}</span>
+                            <span>Last added: {formatRemarkDate(report.remarkAddedAt)}</span>
                           </p>
                         )}
                       </div>
