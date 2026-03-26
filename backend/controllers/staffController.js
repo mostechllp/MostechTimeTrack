@@ -4,6 +4,7 @@ const User = require("../models/User");
 
 const { cloudinary, leaveStorage } = require('../config/cloudinary');
 const multer = require('multer');
+const DailyReport = require("../models/DailyReport");
 
 // Configure multer with Cloudinary storage
 const upload = multer({ 
@@ -561,6 +562,54 @@ const updateProfile = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+// @desc    Get staff's own daily reports
+// @route   GET /api/staff/reports/daily
+const getMyDailyReports = async (req, res) => {
+  try {
+    const { startDate, endDate, limit } = req.query;
+    
+    let query = { userId: req.user._id };
+    
+    // Date range filter
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      query.date = { $gte: start, $lte: end };
+    }
+    
+    const reports = await DailyReport.find(query)
+      .sort({ date: -1 })
+      .limit(limit ? parseInt(limit) : 100);
+    
+    res.json(reports);
+  } catch (error) {
+    console.error('Error in getMyDailyReports:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// @desc    Get a specific daily report by ID
+// @route   GET /api/staff/reports/daily/:id
+const getMyDailyReportById = async (req, res) => {
+  try {
+    const report = await DailyReport.findOne({
+      _id: req.params.id,
+      userId: req.user._id
+    });
+    
+    if (!report) {
+      return res.status(404).json({ message: 'Report not found' });
+    }
+    
+    res.json(report);
+  } catch (error) {
+    console.error('Error in getMyDailyReportById:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
 module.exports = {
   punchIn,
   punchOut,
@@ -570,5 +619,7 @@ module.exports = {
   requestLeave,
   getMyLeaves,
   updateProfile,
-  cancelLeaveRequest
+  cancelLeaveRequest,
+  getMyDailyReports,
+  getMyDailyReportById
 };

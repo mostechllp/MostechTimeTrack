@@ -20,9 +20,10 @@ import StaffManagement from "./pages/admin/StaffManagement";
 import Reports from "./pages/admin/Reports";
 import LeaveManagement from "./pages/admin/LeaveManagement";
 import StaffReports from "./pages/admin/StaffReports";
+import StaffDailyReports from "./pages/staff/StaffReports";
 
 function App() {
-  const loading = useAuth()
+  const loading = useAuth();
 
   if (loading) {
     return (
@@ -77,6 +78,14 @@ function App() {
               element={
                 <PrivateRoute>
                   <StaffProfile />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/staff/daily-reports"
+              element={
+                <PrivateRoute>
+                  <StaffDailyReports />
                 </PrivateRoute>
               }
             />

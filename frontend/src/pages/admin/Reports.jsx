@@ -14,6 +14,7 @@ import autoTable from "jspdf-autotable";
 import axiosInstance from "../../utils/axiosConfig";
 import toast from "react-hot-toast";
 import ConfirmModal from "../../components/resuable/ConfirmModal";
+import logo from "../../assets/logo.png"
 
 const Reports = () => {
   const [staff, setStaff] = useState([]);
@@ -71,10 +72,10 @@ const Reports = () => {
       return;
     }
     if (day === 6) {
-      setDayComplete(hour >= 18); // Saturday ends at 6 PM
+      setDayComplete(hour >= 18);
       return;
     }
-    setDayComplete(hour >= 18); // Weekdays end at 6 PM
+    setDayComplete(hour >= 18);
   };
 
   const fetchStaff = async () => {
@@ -92,7 +93,6 @@ const Reports = () => {
       let response;
 
       if (filterType === "custom") {
-        // Call custom date range endpoint
         response = await axiosInstance.get("/admin/reports/custom", {
           params: {
             startDate: formData.startDate,
@@ -101,7 +101,6 @@ const Reports = () => {
           },
         });
       } else {
-        // Call monthly report endpoint
         response = await axiosInstance.get("/admin/reports/monthly", {
           params: {
             month: formData.month,
@@ -114,7 +113,6 @@ const Reports = () => {
       setAttendance(response.data);
       setExpandedRecord(null);
 
-      // Check if there are today's records
       const today = new Date().toISOString().split("T")[0];
       const hasToday = response.data.some((record) => {
         const recordDate = new Date(record.date).toISOString().split("T")[0];
@@ -137,9 +135,7 @@ const Reports = () => {
   const onSubmit = async (data) => {
     const today = new Date();
 
-    // For custom date range, no need to check day completion
     if (filterType === "custom") {
-      // Validate date range
       if (new Date(data.startDate) > new Date(data.endDate)) {
         toast.error("Start date cannot be after end date");
         return;
@@ -148,7 +144,6 @@ const Reports = () => {
       return;
     }
 
-    // For monthly report
     const isToday =
       parseInt(data.month) === today.getMonth() + 1 &&
       parseInt(data.year) === today.getFullYear();
@@ -175,87 +170,74 @@ const Reports = () => {
     setShowReportConfirm(false);
   };
 
-  const downloadPDF = () => {
-    try {
-      const doc = new jsPDF();
-      const monthName = new Date(
-        selectedYear,
-        selectedMonth - 1,
-      ).toLocaleString("default", { month: "long" });
+const downloadPDF = () => {
+  try {
+    const doc = new jsPDF();
+    const monthName = new Date(
+      selectedYear,
+      selectedMonth - 1,
+    ).toLocaleString("default", { month: "long" });
 
-      const addLogoAndGenerate = () => {
-        const img = new Image();
-        img.crossOrigin = "Anonymous";
-        img.src = "/src/assets/logo.png";
+    const addLogoAndGenerate = () => {
+      // Create an image element and load the imported logo
+      const img = new Image();
+      img.crossOrigin = "Anonymous";
+      
+      img.onload = () => {
+        try {
+          const maxHeight = 20;
+          const maxWidth = 40;
+          const originalWidth = img.width;
+          const originalHeight = img.height;
+          let newWidth = maxHeight;
+          let newHeight = maxHeight;
 
-        img.onload = () => {
-          try {
-            const maxHeight = 20;
-            const maxWidth = 40;
-
-            const originalWidth = img.width;
-            const originalHeight = img.height;
-
-            let newWidth = maxHeight;
-            let newHeight = maxHeight;
-
-            if (originalWidth > originalHeight) {
-              newWidth = (originalWidth / originalHeight) * maxHeight;
-              if (newWidth > maxWidth) {
-                newWidth = maxWidth;
-                newHeight = (originalHeight / originalWidth) * maxWidth;
-              }
-            } else {
-              newHeight = (originalHeight / originalWidth) * newWidth;
+          if (originalWidth > originalHeight) {
+            newWidth = (originalWidth / originalHeight) * maxHeight;
+            if (newWidth > maxWidth) {
+              newWidth = maxWidth;
+              newHeight = (originalHeight / originalWidth) * maxWidth;
             }
-            doc.addImage(img, "PNG", 14, 8, newWidth, newHeight);
-            generateReportContent(doc, monthName, true);
-          } catch (err) {
-            console.error("Logo error, generating without logo:", err);
-            generateReportContent(doc, monthName, false);
+          } else {
+            newHeight = (originalHeight / originalWidth) * newWidth;
           }
-        };
-
-        img.onerror = () => {
-          console.error("Logo not found, generating without logo");
+          doc.addImage(img, "PNG", 14, 8, newWidth, newHeight);
+          generateReportContent(doc, monthName, true);
+        } catch (err) {
+          console.error("Logo error, generating without logo:", err);
           generateReportContent(doc, monthName, false);
-        };
-
-        setTimeout(() => {
-          if (img.complete === false) {
-            generateReportContent(doc, monthName, false);
-          }
-        }, 1000);
+        }
       };
 
-      addLogoAndGenerate();
-    } catch (error) {
-      console.error("PDF Generation Error:", error);
-      toast.error("Failed to generate PDF");
-    }
-  };
+      img.onerror = () => {
+        console.error("Logo not found, generating without logo");
+        generateReportContent(doc, monthName, false);
+      };
 
+      // Use the imported logo
+      img.src = logo;
+    };
+
+    addLogoAndGenerate();
+  } catch (error) {
+    console.error("PDF Generation Error:", error);
+    toast.error("Failed to generate PDF");
+  }
+};
   const generateReportContent = (doc, monthName, hasLogo) => {
     try {
       const startY = hasLogo ? 35 : 25;
 
-      // Company Name
-      if (hasLogo) {
-        doc.setFontSize(16);
-        doc.setTextColor(2, 12, 76);
-        doc.text("Mostech Business Solutions", 45, 20);
-      } else {
+      if (!hasLogo) {
         doc.setFontSize(18);
         doc.setTextColor(2, 12, 76);
         doc.text("Mostech Business Solutions", 14, 20);
       }
 
-      // Title
       doc.setFontSize(14);
       doc.setTextColor(0, 0, 0);
       doc.text("Monthly Attendance Report", 14, startY);
 
-      // Report info
       doc.setFontSize(9);
       doc.setTextColor(100, 100, 100);
       doc.text(`Month: ${monthName} ${selectedYear}`, 14, startY + 8);
@@ -269,7 +251,6 @@ const Reports = () => {
         return;
       }
 
-      // Prepare table data - NEW SIMPLIFIED FORMAT
       const tableColumn = [
         "Staff Name",
         "Date",
@@ -280,7 +261,6 @@ const Reports = () => {
         "Status",
       ];
       const tableRows = [];
-      const rowStatuses = [];
 
       filteredAttendance.forEach((item) => {
         const staffName =
@@ -303,28 +283,26 @@ const Reports = () => {
         const overtime = item.overtimeHours?.toFixed(2) || "0";
 
         let statusText;
-        let statusType;
         if (item.status === "present") {
           statusText = "Present";
-          statusType = "present";
         } else if (item.status === "half-day") {
           statusText = "Half Day";
-          statusType = "half-day";
         } else {
           statusText = "Absent";
-          statusType = "absent";
         }
 
-        tableRows.push([
-          staffName,
-          date,
-          punchIn,
-          punchOut,
-          hours,
-          overtime,
-          statusText,
-        ]);
-        rowStatuses.push(statusType);
+        tableRows.push({
+          rowData: [
+            staffName,
+            date,
+            punchIn,
+            punchOut,
+            hours,
+            overtime,
+            statusText,
+          ],
+          status: item.status,
+        });
       });
 
       // Calculate summary
@@ -343,7 +321,7 @@ const Reports = () => {
       // Generate table
       autoTable(doc, {
         head: [tableColumn],
-        body: tableRows,
+        body: tableRows.map((row) => row.rowData),
         startY: startY + 25,
         margin: { left: 10, right: 10 },
         styles: {
@@ -362,17 +340,25 @@ const Reports = () => {
           fillColor: [248, 248, 248],
         },
         didParseCell: function (data) {
-          // Color absent rows in light red
-          if (data.row.index >= 0 && rowStatuses[data.row.index] === "absent") {
-            data.cell.styles.fillColor = [255, 200, 200];
-            data.cell.styles.textColor = [139, 0, 0];
-          }
-          // Optional: Color overtime cells in orange if overtime > 0
-          if (data.column.index === 5 && data.row.index >= 0) {
-            const overtimeValue = parseFloat(tableRows[data.row.index][5]);
-            if (overtimeValue > 0) {
-              data.cell.styles.textColor = [255, 140, 0];
-              data.cell.styles.fontStyle = "bold";
+          // Only color the row if it's a data row (not header) and status is absent
+          if (data.section === "body" && data.row.index >= 0) {
+            const rowStatus = tableRows[data.row.index]?.status;
+
+            // Make entire row light red for absent records
+            if (rowStatus === "absent") {
+              data.cell.styles.fillColor = [255, 200, 200];
+              data.cell.styles.textColor = [139, 0, 0];
+            }
+
+            // Color overtime cells orange if overtime > 0
+            if (data.column.index === 5 && data.row.index >= 0) {
+              const overtimeValue = parseFloat(
+                tableRows[data.row.index]?.rowData[5] || "0",
+              );
+              if (overtimeValue > 0) {
+                data.cell.styles.textColor = [255, 140, 0];
+                data.cell.styles.fontStyle = "bold";
+              }
             }
           }
         },
@@ -387,7 +373,6 @@ const Reports = () => {
         },
       });
 
-      // Add summary
       const finalY = doc.lastAutoTable?.finalY || doc.autoTableEndPosY || 200;
       doc.setFontSize(8);
       doc.setTextColor(100, 100, 100);
@@ -403,11 +388,10 @@ const Reports = () => {
         finalY + 14,
       );
 
-      // Footer
       doc.setFontSize(7);
       doc.setTextColor(150, 150, 150);
       doc.text(
-        "Generated by Mostech Business Solutions Attendance System",
+        "Generated by Mostech Business Solutions Time tracker",
         105,
         finalY + 25,
         { align: "center" },
@@ -443,9 +427,9 @@ const Reports = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-        {/* Header Section */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 sm:mb-8">
-          <div className="flex items-center space-x-3">
+        {/* Header Section - Clean and Simple */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          <div className="flex items-center justify-between w-full sm:w-auto">
             <h1
               className="text-xl sm:text-2xl lg:text-3xl font-bold"
               style={{ color: "#020c4c" }}
@@ -455,76 +439,63 @@ const Reports = () => {
             {attendance.length > 0 && (
               <button
                 onClick={downloadPDF}
-                className="hidden sm:flex items-center space-x-2 px-3 py-1.5 rounded-lg text-white hover:opacity-90 transition-all"
+                className="sm:hidden flex items-center space-x-2 px-3 py-1.5 rounded-lg text-white hover:opacity-90 transition-all"
                 style={{ background: "#0a1a6e" }}
-                title="Download PDF"
               >
                 <DocumentDownloadIcon className="h-4 w-4" />
                 <span className="text-sm">PDF</span>
               </button>
             )}
           </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+            {/* Search Bar */}
+            <div className="relative w-full sm:w-64">
+              <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by name or email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+            </div>
+
+            {/* Desktop PDF Button */}
+            {attendance.length > 0 && (
+              <button
+                onClick={downloadPDF}
+                className="hidden sm:flex items-center space-x-2 px-4 py-2 rounded-lg text-white hover:opacity-90 transition-all"
+                style={{ background: "#0a1a6e" }}
+              >
+                <DocumentDownloadIcon className="h-4 w-4" />
+                <span className="text-sm">Download PDF</span>
+              </button>
+            )}
+          </div>
         </div>
-        {/* Search Bar */}
-        <div className="relative w-full sm:w-64">
-          <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search by name or email..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        {/* Warning for incomplete today's records */}
+
+        {/* Only show warning for incomplete today's data - More subtle */}
         {hasTodayRecords && !dayComplete && (
-          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <div className="flex items-start space-x-3">
-              <ExclamationIcon className="h-5 w-5 text-yellow-600 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-yellow-800">
-                  Today's data may be incomplete
-                </p>
-                <p className="text-xs text-yellow-700 mt-1">
-                  Some staff members are still working. Records will update
-                  automatically when they punch out. Today's data will be
-                  finalized after working hours end.
-                </p>
-              </div>
+          <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center space-x-2">
+              <ClockIcon className="h-4 w-4 text-blue-600 flex-shrink-0" />
+              <p className="text-xs text-blue-700">
+                Today's data is in progress. Records will update automatically
+                when staff punch out.
+              </p>
             </div>
           </div>
         )}
 
-        {/* Mobile Filter Toggle Button */}
-        <div className="md:hidden mb-4">
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="w-full flex items-center justify-between px-4 py-3 bg-white rounded-lg shadow-md"
-          >
-            <div className="flex items-center space-x-2">
-              <FilterIcon className="h-5 w-5" style={{ color: "#020c4c" }} />
-              <span className="font-medium" style={{ color: "#020c4c" }}>
-                Filter Reports
-              </span>
-            </div>
-            {showFilters ? (
-              <XIcon className="h-5 w-5 text-gray-500" />
-            ) : (
-              <span className="text-sm text-gray-500">
-                {monthNames[selectedMonth - 1]} {selectedYear}
-              </span>
-            )}
-          </button>
-        </div>
-
-        {/* Filter Type Toggle */}
+        {/* Filter Type Toggle - Responsive */}
         <div className="flex space-x-2 mb-4">
           <button
             onClick={() => {
               setFilterType("monthly");
               setShowFilters(false);
             }}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+            className={`flex-1 sm:flex-none px-4 py-2 rounded-lg font-medium transition-all text-sm ${
               filterType === "monthly"
                 ? "bg-blue-600 text-white"
                 : "bg-gray-200 text-gray-700 hover:bg-gray-300"
@@ -537,7 +508,7 @@ const Reports = () => {
               setFilterType("custom");
               setShowFilters(true);
             }}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+            className={`flex-1 sm:flex-none px-4 py-2 rounded-lg font-medium transition-all text-sm ${
               filterType === "custom"
                 ? "bg-blue-600 text-white"
                 : "bg-gray-200 text-gray-700 hover:bg-gray-300"
@@ -547,21 +518,48 @@ const Reports = () => {
           </button>
         </div>
 
-        {/* Filter Form */}
+        {/* Mobile Filter Toggle Button */}
+        <div className="md:hidden mb-4">
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className="w-full flex items-center justify-between px-4 py-3 bg-white rounded-lg shadow-sm border border-gray-200"
+          >
+            <div className="flex items-center space-x-2">
+              <FilterIcon className="h-5 w-5" style={{ color: "#020c4c" }} />
+              <span
+                className="font-medium text-sm"
+                style={{ color: "#020c4c" }}
+              >
+                {showFilters ? "Hide Filters" : "Show Filters"}
+              </span>
+            </div>
+            {!showFilters && (
+              <span className="text-xs text-gray-500">
+                {filterType === "monthly"
+                  ? `${monthNames[selectedMonth - 1]} ${selectedYear}`
+                  : `${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}`}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Filter Form - Responsive */}
         <div
           className={`${showFilters ? "block" : "hidden md:block"} mb-6 transition-all duration-300`}
         >
-          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 border border-gray-200">
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {filterType === "monthly" ? (
                   <>
-                    {/* Monthly Report Fields */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Month
                       </label>
-                      <select {...register("month")} className="...">
+                      <select
+                        {...register("month")}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
                         {monthNames.map((month, i) => (
                           <option key={i + 1} value={i + 1}>
                             {month}
@@ -574,7 +572,10 @@ const Reports = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Year
                       </label>
-                      <select {...register("year")} className="...">
+                      <select
+                        {...register("year")}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
                         {[2024, 2025, 2026].map((year) => (
                           <option key={year} value={year}>
                             {year}
@@ -585,7 +586,6 @@ const Reports = () => {
                   </>
                 ) : (
                   <>
-                    {/* Custom Date Range Fields */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Start Date
@@ -616,12 +616,14 @@ const Reports = () => {
                   </>
                 )}
 
-                {/* Staff Member Selector (same for both) */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Staff Member
                   </label>
-                  <select {...register("staffId")} className="...">
+                  <select
+                    {...register("staffId")}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
                     <option value="all">All Staff</option>
                     {staff.map((member) => (
                       <option key={member._id} value={member._id}>
@@ -631,16 +633,19 @@ const Reports = () => {
                   </select>
                 </div>
 
-                {/* Generate Button */}
-                <div className="flex items-end space-x-2">
-                  <button type="submit" disabled={loading} className="...">
+                <div className="flex items-end">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50"
+                  >
                     {loading ? (
                       <div className="flex items-center justify-center">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                         <span>Generating...</span>
                       </div>
                     ) : filterType === "custom" ? (
-                      "Generate Custom Report"
+                      "Generate Report"
                     ) : (
                       "Generate Report"
                     )}
@@ -649,23 +654,13 @@ const Reports = () => {
               </div>
             </form>
 
-            {/* Display Date Range Summary */}
+            {/* Display Date Range Summary - Only when records exist */}
             {filteredAttendance.length > 0 && (
-              <div className="mb-4 text-sm text-gray-500">
-                Showing {filteredAttendance.length} records
-                {filterType === "custom" &&
-                  ` for ${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}`}
-                {searchTerm && ` matching "${searchTerm}"`}
-              </div>
-            )}
-
-            {/* Info message for incomplete days */}
-            {!dayComplete && (
-              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-xs sm:text-sm text-blue-800">
-                  Today's attendance is still in progress. Records will update
-                  automatically as staff punch in/out. All data will be visible
-                  in this report.
+              <div className="mt-4 pt-3 border-t border-gray-200">
+                <p className="text-xs text-gray-500">
+                  Showing {filteredAttendance.length} of {attendance.length}{" "}
+                  record(s)
+                  {searchTerm && ` matching "${searchTerm}"`}
                 </p>
               </div>
             )}
@@ -674,18 +669,18 @@ const Reports = () => {
 
         {/* Report Results - Simplified Table */}
         {attendance.length > 0 && (
-          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-            <div className="p-3 sm:p-4 bg-gray-50 border-b">
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+            {/* Summary Header */}
+            <div className="p-3 sm:p-4 bg-gradient-to-r from-gray-50 to-white border-b border-gray-200">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                <p className="text-xs sm:text-sm text-gray-600">
-                  Showing {attendance.length} completed day record
-                  {attendance.length !== 1 ? "s" : ""}
+                <p className="text-xs sm:text-sm text-gray-600 font-medium">
+                  Total Records: {attendance.length}
                 </p>
-                <div className="flex items-center space-x-2">
-                  <span className="text-xs text-gray-500">
-                    Total Hours:
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs text-gray-500">Total Hours:</span>
                     <span
-                      className="font-semibold ml-1"
+                      className="text-sm font-semibold"
                       style={{ color: "#020c4c" }}
                     >
                       {attendance
@@ -696,10 +691,10 @@ const Reports = () => {
                         .toFixed(2)}{" "}
                       hrs
                     </span>
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    Total Overtime:
-                    <span className="font-semibold ml-1 text-orange-600">
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs text-gray-500">Overtime:</span>
+                    <span className="text-sm font-semibold text-orange-600">
                       {attendance
                         .reduce(
                           (sum, record) => sum + (record.overtimeHours || 0),
@@ -708,12 +703,12 @@ const Reports = () => {
                         .toFixed(2)}{" "}
                       hrs
                     </span>
-                  </span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Desktop Table View - Simplified */}
+            {/* Desktop Table View */}
             <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead style={{ background: "#020c4c" }}>
@@ -814,140 +809,128 @@ const Reports = () => {
               </table>
             </div>
 
-            {/* Mobile Card View - Simplified */}
+            {/* Mobile Card View */}
             <div className="md:hidden divide-y divide-gray-200">
               {filteredAttendance.map((record, index) => (
                 <div
                   key={index}
                   className="p-4 hover:bg-gray-50 transition-colors"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center mb-2">
-                        <div className="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                          <span className="text-blue-600 font-medium">
-                            {record.userId?.firstName?.charAt(0)}
-                            {record.userId?.lastName?.charAt(0)}
-                          </span>
-                        </div>
-                        <div className="ml-3">
-                          <p className="text-sm font-semibold text-gray-900">
-                            {record.userId?.firstName} {record.userId?.lastName}
-                          </p>
-                          <p className="text-xs text-gray-500 mt-0.5">
-                            {new Date(record.date).toLocaleDateString()}
-                          </p>
-                        </div>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center flex-1">
+                      <div className="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                        <span className="text-blue-600 font-medium text-sm">
+                          {record.userId?.firstName?.charAt(0)}
+                          {record.userId?.lastName?.charAt(0)}
+                        </span>
                       </div>
-
-                      <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
-                        <div>
-                          <p className="text-xs text-gray-500">Punch In</p>
-                          <p className="font-mono text-sm">
-                            {record.punchIn
-                              ? new Date(record.punchIn).toLocaleTimeString(
-                                  [],
-                                  {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  },
-                                )
-                              : "--:--"}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500">Punch Out</p>
-                          <p className="font-mono text-sm">
-                            {record.punchOut
-                              ? new Date(record.punchOut).toLocaleTimeString(
-                                  [],
-                                  {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  },
-                                )
-                              : "--:--"}
-                          </p>
-                        </div>
+                      <div className="ml-3">
+                        <p className="text-sm font-semibold text-gray-900">
+                          {record.userId?.firstName} {record.userId?.lastName}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {new Date(record.date).toLocaleDateString()}
+                        </p>
                       </div>
+                    </div>
+                    <span
+                      className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadge(record.status)}`}
+                    >
+                      {record.status === "present"
+                        ? "Present"
+                        : record.status === "half-day"
+                          ? "Half Day"
+                          : "Absent"}
+                    </span>
+                  </div>
 
-                      <button
-                        onClick={() => toggleRecordExpand(index)}
-                        className="mt-2 text-xs text-blue-600 font-medium"
-                      >
-                        {expandedRecord === index ? "Show Less" : "Show More"}
-                      </button>
-
-                      {expandedRecord === index && (
-                        <div className="mt-3 pt-3 border-t border-gray-100">
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <p className="text-xs text-gray-500">
-                                Worked Hours
-                              </p>
-                              <p
-                                className="font-semibold"
-                                style={{ color: "#020c4c" }}
-                              >
-                                {record.totalWorkedHours?.toFixed(2)} hrs
-                              </p>
-                            </div>
-                            {record.overtimeHours > 0 && (
-                              <div>
-                                <p className="text-xs text-gray-500">
-                                  Overtime
-                                </p>
-                                <p className="font-semibold text-orange-600">
-                                  +{record.overtimeHours?.toFixed(2)} hrs
-                                </p>
-                              </div>
-                            )}
-                            <div className="col-span-2">
-                              <p className="text-xs text-gray-500">Status</p>
-                              <span
-                                className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${getStatusBadge(record.status)}`}
-                              >
-                                {record.status === "present"
-                                  ? "Present"
-                                  : record.status === "half-day"
-                                    ? "Half Day"
-                                    : "Absent"}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                  <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div className="bg-gray-50 rounded-lg p-2">
+                      <p className="text-xs text-gray-500">Punch In</p>
+                      <p className="text-sm font-mono font-medium">
+                        {record.punchIn
+                          ? new Date(record.punchIn).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "--:--"}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 rounded-lg p-2">
+                      <p className="text-xs text-gray-500">Punch Out</p>
+                      <p className="text-sm font-mono font-medium">
+                        {record.punchOut
+                          ? new Date(record.punchOut).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "--:--"}
+                      </p>
                     </div>
                   </div>
+
+                  <button
+                    onClick={() => toggleRecordExpand(index)}
+                    className="mt-3 text-xs text-blue-600 font-medium w-full text-center py-1 hover:bg-blue-50 rounded transition-colors"
+                  >
+                    {expandedRecord === index ? "Show Less" : "Show More"}
+                  </button>
+
+                  {expandedRecord === index && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-blue-50 rounded-lg p-2">
+                          <p className="text-xs text-gray-600">Worked Hours</p>
+                          <p
+                            className="text-sm font-semibold"
+                            style={{ color: "#020c4c" }}
+                          >
+                            {record.totalWorkedHours?.toFixed(2)} hrs
+                          </p>
+                        </div>
+                        {record.overtimeHours > 0 && (
+                          <div className="bg-orange-50 rounded-lg p-2">
+                            <p className="text-xs text-gray-600">Overtime</p>
+                            <p className="text-sm font-semibold text-orange-600">
+                              +{record.overtimeHours?.toFixed(2)} hrs
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
 
             {/* Summary Footer */}
-            <div className="p-3 sm:p-4 bg-gray-50 border-t">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs sm:text-sm">
-                <div>
-                  <p className="text-gray-500">Total Records</p>
-                  <p className="font-semibold" style={{ color: "#020c4c" }}>
-                    {attendance.length}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-gray-500">Present Days</p>
-                  <p className="font-semibold text-green-600">
+            <div className="p-3 sm:p-4 bg-gray-50 border-t border-gray-200">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                <div className="bg-white rounded-lg p-2">
+                  <p className="text-xs text-gray-500">Present</p>
+                  <p className="text-lg font-bold text-green-600">
                     {attendance.filter((r) => r.status === "present").length}
                   </p>
                 </div>
-                <div>
-                  <p className="text-gray-500">Half Days</p>
-                  <p className="font-semibold text-yellow-600">
+                <div className="bg-white rounded-lg p-2">
+                  <p className="text-xs text-gray-500">Half Day</p>
+                  <p className="text-lg font-bold text-yellow-600">
                     {attendance.filter((r) => r.status === "half-day").length}
                   </p>
                 </div>
-                <div>
-                  <p className="text-gray-500">Absent Days</p>
-                  <p className="font-semibold text-red-600">
+                <div className="bg-white rounded-lg p-2">
+                  <p className="text-xs text-gray-500">Absent</p>
+                  <p className="text-lg font-bold text-red-600">
                     {attendance.filter((r) => r.status === "absent").length}
+                  </p>
+                </div>
+                <div className="bg-white rounded-lg p-2">
+                  <p className="text-xs text-gray-500">Total Hours</p>
+                  <p className="text-lg font-bold" style={{ color: "#020c4c" }}>
+                    {attendance
+                      .reduce((sum, r) => sum + (r.totalWorkedHours || 0), 0)
+                      .toFixed(1)}
+                    h
                   </p>
                 </div>
               </div>
@@ -957,13 +940,13 @@ const Reports = () => {
 
         {/* Empty State */}
         {attendance.length === 0 && !loading && (
-          <div className="bg-white rounded-xl shadow-lg p-8 sm:p-12 text-center">
+          <div className="bg-white rounded-xl shadow-lg p-8 sm:p-12 text-center border border-gray-200">
             <DocumentDownloadIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500 text-sm sm:text-base">
-              No completed attendance records found for this period
+              No attendance records found
             </p>
             <p className="text-xs text-gray-400 mt-2">
-              Try selecting a different month or year
+              Try selecting a different period or staff member
             </p>
           </div>
         )}
@@ -985,15 +968,7 @@ const Reports = () => {
         onClose={handleCancelReport}
         onConfirm={handleConfirmReport}
         title="Generate Report"
-        message={`Today's attendance is not yet complete. Reports will only show completed days.\n\nDo you want to continue?`}
-      />
-
-      <ConfirmModal
-        isOpen={showReportConfirm}
-        onClose={handleCancelReport}
-        onConfirm={handleConfirmReport}
-        title="Generate Report"
-        message={`Today's attendance is still in progress. Some records may be incomplete.\n\nDo you want to continue?`}
+        message="Today's attendance is still in progress. Some records may be incomplete.\n\nDo you want to continue?"
       />
     </div>
   );

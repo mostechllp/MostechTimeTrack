@@ -70,6 +70,7 @@ const Header = () => {
       { path: "/staff", name: "Dashboard", icon: HomeIcon },
       { path: "/staff/leave", name: "Leave Request", icon: CalendarIcon },
       { path: "/staff/profile", name: "Profile", icon: UserIcon },
+      { path: "/staff/daily-reports", name: "Daily Reports", icon: ClipboardListIcon },
     ];
   };
 

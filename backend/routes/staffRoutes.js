@@ -10,7 +10,9 @@ const {
   requestLeave,
   getMyLeaves,
   cancelLeaveRequest,
-  updateProfile
+  updateProfile,
+  getMyDailyReports,
+  getMyDailyReportById
 } = require('../controllers/staffController');
 const { leaveStorage, profileStorage } = require('../config/cloudinary');
 const multer = require('multer');
@@ -39,5 +41,8 @@ router.put('/profile', uploadProfile.single('profileImage'), updateProfile);
 router.post('/reports', submitReport);
 router.get('/reports', getMyReports);
 router.put('/reports/:id', updateReport);
+
+router.get('/reports/daily', getMyDailyReports);
+router.get('/reports/daily/:id', getMyDailyReportById);
 
 module.exports = router;
