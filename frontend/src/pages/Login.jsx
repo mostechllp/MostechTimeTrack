@@ -206,23 +206,6 @@ const Login = () => {
                 </button>
               </div>
 
-              {/* Demo Credentials */}
-              <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
-                <p className="text-xs font-medium text-blue-800 mb-2">
-                  Admin Credentials:
-                </p>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <span className="text-gray-600">Admin:</span>
-                    <p className="font-mono text-blue-700">admin@mostech.com</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">Password</span>
-                    <p className="font-mono text-blue-700">MoS@2026#</p>
-                  </div>
-                </div>
-              </div>
-
               {/* Login Button */}
               <button
                 type="submit"
