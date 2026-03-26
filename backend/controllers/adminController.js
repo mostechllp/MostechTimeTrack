@@ -117,7 +117,7 @@ const deleteStaff = async (req, res) => {
     
     res.json({ 
       success: true, 
-      message: 'Staff member deleted successfully',
+      message: 'Staff member inactivated successfully',
       staff: {
         _id: staff._id,
         firstName: staff.firstName,
@@ -144,7 +144,7 @@ const restoreStaff = async (req, res) => {
       return res.status(404).json({ message: 'Staff member not found' });
     }
     
-    if (!staff.isActive) {
+    if (staff.isActive === true) {
       return res.status(400).json({ message: 'Staff member is not deactivated' });
     }
     
