@@ -12,6 +12,7 @@ import {
   CheckCircleIcon,
 } from "@heroicons/react/outline";
 import ForgotPasswordModal from "../components/resuable/ForgotPasswordModal";
+import logo from "../../public/fav.png"
 
 const Login = () => {
   const {
@@ -62,14 +63,14 @@ const Login = () => {
           <div>
             <div className="flex items-center space-x-3 mb-8">
               <div className="bg-white/20 backdrop-blur-sm p-2 rounded-xl">
-                <UserCircleIcon className="h-8 w-8" />
+                <img src={logo} alt="" className="w-10 h-10"/>
               </div>
               <div>
                 <h1 className="text-2xl font-bold">
                   Mostech Business Solutions
                 </h1>
                 <p className="text-sm text-blue-200">
-                  Attendance Management System
+                  Time Tracker
                 </p>
               </div>
             </div>

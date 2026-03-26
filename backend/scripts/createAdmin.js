@@ -13,7 +13,7 @@ const createAdmin = async () => {
 
     // Admin details
     const adminData = {
-      email: 'admin@mostech.com',
+      email: 'hr@mostech.com',
       password: 'MoS@2026#', 
       firstName: 'Mostech',
       lastName: 'Solutions',
