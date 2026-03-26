@@ -11,6 +11,7 @@ import {
   ClockIcon,
   CheckCircleIcon,
 } from "@heroicons/react/outline";
+import ForgotPasswordModal from "../components/resuable/ForgotPasswordModal";
 
 const Login = () => {
   const {
@@ -21,6 +22,7 @@ const Login = () => {
   const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
 
   const onSubmit = async (data) => {
     setIsLoading(true);
@@ -194,6 +196,16 @@ const Login = () => {
                 )}
               </div>
 
+              <div className="text-right mb-4">
+                <button
+                  type="button"
+                  onClick={() => setShowForgotPassword(true)}
+                  className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                >
+                  Forgot Password?
+                </button>
+              </div>
+
               {/* Demo Credentials */}
               <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
                 <p className="text-xs font-medium text-blue-800 mb-2">
@@ -242,6 +254,10 @@ const Login = () => {
           </div>
         </div>
       </div>
+      <ForgotPasswordModal
+        isOpen={showForgotPassword}
+        onClose={() => setShowForgotPassword(false)}
+      />
     </div>
   );
 };

@@ -21,6 +21,7 @@ import Reports from "./pages/admin/Reports";
 import LeaveManagement from "./pages/admin/LeaveManagement";
 import StaffReports from "./pages/admin/StaffReports";
 import StaffDailyReports from "./pages/staff/StaffReports";
+import ResetPassword from "./pages/ResetPassword";
 
 function App() {
   const loading = useAuth();
@@ -45,6 +46,7 @@ function App() {
           <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* Protected Routes */}
             <Route
