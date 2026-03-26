@@ -145,7 +145,7 @@ const restoreStaff = async (req, res) => {
     }
     
     if (!staff.isActive) {
-      return res.status(400).json({ message: 'Staff member is not deleted' });
+      return res.status(400).json({ message: 'Staff member is not deactivated' });
     }
     
     // Restore - unmark deleted
