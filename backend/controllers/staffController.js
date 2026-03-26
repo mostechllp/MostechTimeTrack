@@ -610,6 +610,48 @@ const getMyDailyReportById = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+// @desc    Add remark to a daily report
+// @route   POST /api/staff/reports/:id/remark
+const addRemarkToReport = async (req, res) => {
+  try {
+    const { remark } = req.body;
+    
+    if (!remark || !remark.trim()) {
+      return res.status(400).json({ message: 'Remark cannot be empty' });
+    }
+    
+    const report = await DailyReport.findOne({
+      _id: req.params.id,
+      userId: req.user._id
+    });
+
+    if (!report) {
+      return res.status(404).json({ message: 'Report not found' });
+    }
+
+    // Update remarks - preserve existing if any, or add new
+    if (report.remarks) {
+      // Append new remark with timestamp
+      const timestamp = new Date().toLocaleString();
+      report.remarks = `${report.remarks}\n\n[${timestamp}] ${remark}`;
+    } else {
+      report.remarks = remark;
+    }
+    report.remarkAddedAt = new Date();
+    
+    await report.save();
+    
+    res.json({ 
+      success: true, 
+      message: 'Remark added successfully',
+      report 
+    });
+  } catch (error) {
+    console.error('Error in addRemarkToReport:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
 module.exports = {
   punchIn,
   punchOut,
@@ -621,5 +663,6 @@ module.exports = {
   updateProfile,
   cancelLeaveRequest,
   getMyDailyReports,
-  getMyDailyReportById
+  getMyDailyReportById,
+  addRemarkToReport
 };

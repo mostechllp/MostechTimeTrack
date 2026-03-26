@@ -28,6 +28,15 @@ const dailyReportSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  remarks: { 
+    type: String,
+    trim: true,
+    default: null
+  },
+  remarkAddedAt: {
+    type: Date,
+    default: null
+  },
   submittedAt: {
     type: Date,
     default: Date.now
