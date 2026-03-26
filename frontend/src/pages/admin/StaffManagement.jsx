@@ -150,7 +150,7 @@ const StaffManagement = () => {
       const response = await axiosInstance.delete(
         `/admin/staff/${selectedStaff._id}`,
       );
-      toast.success(response.data.message || "Staff member deleted");
+      toast.success(response.data.message || "Staff member deactivated");
       setShowDeleteConfirm(false);
       setSelectedStaff(null);
       fetchStaff();
@@ -653,7 +653,7 @@ const StaffManagement = () => {
                         <span className="text-sm text-gray-500">Status:</span>
                         {member.isActive === false ? (
                           <span className="px-2 text-xs font-semibold rounded-full bg-red-100 text-red-800">
-                            Deleted
+                            Inactive
                           </span>
                         ) : (
                           <span className="px-2 text-xs font-semibold rounded-full bg-green-100 text-green-800">
