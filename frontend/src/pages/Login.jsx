@@ -113,8 +113,8 @@ const Login = () => {
         <div className="w-full max-w-md">
           {/* Mobile Logo - Visible only on mobile */}
           <div className="lg:hidden text-center mb-8">
-            <div className="inline-flex items-center justify-center bg-gradient-to-r from-blue-600 to-indigo-600 p-3 rounded-full mb-4">
-              <UserCircleIcon className="h-8 w-8 text-white" />
+            <div className="inline-flex items-center justify-center bg-blue-100 p-3 rounded-full mb-4">
+              <img src={logo} alt="" className="w-10 h-10"/>
             </div>
             <h2 className="text-2xl font-bold text-gray-900">
               Mostech Business Solutions
