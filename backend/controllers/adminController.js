@@ -508,7 +508,7 @@ const cleanupOldRejectedLeaves = async (req, res) => {
 const getDashboardStats = async (req, res) => {
   try {
     // Get total staff count
-    const totalStaff = await User.countDocuments({ role: "staff" });
+    const totalStaff = await User.countDocuments({ role: "staff", isActive: true });
 
     // Get today's date range
     const today = new Date();
