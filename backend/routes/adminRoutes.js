@@ -15,7 +15,8 @@ const {
   getPendingExpiringLeaves,
   updateStaff,
   deleteStaff,
-  restoreStaff
+  restoreStaff,
+  getCustomDateReport
 } = require('../controllers/adminController');
 const { getAllReports, getUserReports } = require('../controllers/reportController');
 
@@ -35,7 +36,8 @@ router.put('/staff/:id/restore', restoreStaff);
 
 // Reports
 router.get('/reports/monthly', getMonthlyReport);
-
+router.get('/reports/custom', getCustomDateReport);
+ 
 // Leave management
 router.get('/leaves', getLeaveRequests);
 router.put('/leaves/:id', updateLeaveStatus);

@@ -6,6 +6,8 @@ import {
   FilterIcon,
   XIcon,
   ExclamationIcon,
+  CalendarIcon,
+  SearchIcon,
 } from "@heroicons/react/outline";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -24,16 +26,23 @@ const Reports = () => {
   const [pendingFormData, setPendingFormData] = useState(null);
   const [hasTodayRecords, setHasTodayRecords] = useState(false);
 
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState("monthly"); // 'monthly' or 'custom'
+
   const { register, handleSubmit, watch } = useForm({
     defaultValues: {
       month: new Date().getMonth() + 1,
       year: new Date().getFullYear(),
       staffId: "all",
+      startDate: new Date(new Date().setDate(1)).toISOString().split("T")[0],
+      endDate: new Date().toISOString().split("T")[0],
     },
   });
 
   const selectedMonth = watch("month");
   const selectedYear = watch("year");
+  const startDate = watch("startDate");
+  const endDate = watch("endDate");
 
   useEffect(() => {
     fetchStaff();
@@ -42,6 +51,15 @@ const Reports = () => {
     const interval = setInterval(checkDayCompletion, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  const filteredAttendance = attendance.filter((record) => {
+    if (!searchTerm) return true;
+    const staffName =
+      `${record.userId?.firstName || ""} ${record.userId?.lastName || ""}`.toLowerCase();
+    const email = (record.userId?.email || "").toLowerCase();
+    const search = searchTerm.toLowerCase();
+    return staffName.includes(search) || email.includes(search);
+  });
 
   const checkDayCompletion = () => {
     const now = new Date();
@@ -71,13 +89,28 @@ const Reports = () => {
   const fetchReport = async (formData) => {
     try {
       setLoading(true);
-      const response = await axiosInstance.get("/admin/reports/monthly", {
-        params: {
-          month: formData.month,
-          year: formData.year,
-          staffId: formData.staffId,
-        },
-      });
+      let response;
+
+      if (filterType === "custom") {
+        // Call custom date range endpoint
+        response = await axiosInstance.get("/admin/reports/custom", {
+          params: {
+            startDate: formData.startDate,
+            endDate: formData.endDate,
+            staffId: formData.staffId,
+          },
+        });
+      } else {
+        // Call monthly report endpoint
+        response = await axiosInstance.get("/admin/reports/monthly", {
+          params: {
+            month: formData.month,
+            year: formData.year,
+            staffId: formData.staffId,
+          },
+        });
+      }
+
       setAttendance(response.data);
       setExpandedRecord(null);
 
@@ -103,6 +136,19 @@ const Reports = () => {
 
   const onSubmit = async (data) => {
     const today = new Date();
+
+    // For custom date range, no need to check day completion
+    if (filterType === "custom") {
+      // Validate date range
+      if (new Date(data.startDate) > new Date(data.endDate)) {
+        toast.error("Start date cannot be after end date");
+        return;
+      }
+      await fetchReport(data);
+      return;
+    }
+
+    // For monthly report
     const isToday =
       parseInt(data.month) === today.getMonth() + 1 &&
       parseInt(data.year) === today.getFullYear();
@@ -236,7 +282,7 @@ const Reports = () => {
       const tableRows = [];
       const rowStatuses = [];
 
-      attendance.forEach((item) => {
+      filteredAttendance.forEach((item) => {
         const staffName =
           `${item.userId?.firstName || ""} ${item.userId?.lastName || ""}`.trim() ||
           "Unknown";
@@ -419,6 +465,17 @@ const Reports = () => {
             )}
           </div>
         </div>
+        {/* Search Bar */}
+        <div className="relative w-full sm:w-64">
+          <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search by name or email..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
         {/* Warning for incomplete today's records */}
         {hasTodayRecords && !dayComplete && (
           <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -460,6 +517,36 @@ const Reports = () => {
           </button>
         </div>
 
+        {/* Filter Type Toggle */}
+        <div className="flex space-x-2 mb-4">
+          <button
+            onClick={() => {
+              setFilterType("monthly");
+              setShowFilters(false);
+            }}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              filterType === "monthly"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            }`}
+          >
+            Monthly Report
+          </button>
+          <button
+            onClick={() => {
+              setFilterType("custom");
+              setShowFilters(true);
+            }}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              filterType === "custom"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            }`}
+          >
+            Custom Date Range
+          </button>
+        </div>
+
         {/* Filter Form */}
         <div
           className={`${showFilters ? "block" : "hidden md:block"} mb-6 transition-all duration-300`}
@@ -467,46 +554,74 @@ const Reports = () => {
           <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Month
-                  </label>
-                  <select
-                    {...register("month")}
-                    className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  >
-                    {monthNames.map((month, i) => (
-                      <option key={i + 1} value={i + 1}>
-                        {month}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {filterType === "monthly" ? (
+                  <>
+                    {/* Monthly Report Fields */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Month
+                      </label>
+                      <select {...register("month")} className="...">
+                        {monthNames.map((month, i) => (
+                          <option key={i + 1} value={i + 1}>
+                            {month}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Year
-                  </label>
-                  <select
-                    {...register("year")}
-                    className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  >
-                    {[2024, 2025, 2026].map((year) => (
-                      <option key={year} value={year}>
-                        {year}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Year
+                      </label>
+                      <select {...register("year")} className="...">
+                        {[2024, 2025, 2026].map((year) => (
+                          <option key={year} value={year}>
+                            {year}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Custom Date Range Fields */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Start Date
+                      </label>
+                      <div className="relative">
+                        <CalendarIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                        <input
+                          type="date"
+                          {...register("startDate")}
+                          className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
 
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        End Date
+                      </label>
+                      <div className="relative">
+                        <CalendarIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                        <input
+                          type="date"
+                          {...register("endDate")}
+                          className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Staff Member Selector (same for both) */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Staff Member
                   </label>
-                  <select
-                    {...register("staffId")}
-                    className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  >
+                  <select {...register("staffId")} className="...">
                     <option value="all">All Staff</option>
                     {staff.map((member) => (
                       <option key={member._id} value={member._id}>
@@ -516,41 +631,33 @@ const Reports = () => {
                   </select>
                 </div>
 
+                {/* Generate Button */}
                 <div className="flex items-end space-x-2">
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className={`flex-1 py-2 px-4 rounded-lg text-white font-medium transition-all ${
-                      loading
-                        ? "opacity-50 cursor-not-allowed"
-                        : "hover:opacity-90"
-                    }`}
-                    style={{ background: "#020c4c" }}
-                  >
+                  <button type="submit" disabled={loading} className="...">
                     {loading ? (
                       <div className="flex items-center justify-center">
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                         <span>Generating...</span>
                       </div>
+                    ) : filterType === "custom" ? (
+                      "Generate Custom Report"
                     ) : (
                       "Generate Report"
                     )}
                   </button>
-
-                  {attendance.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={downloadPDF}
-                      className="md:hidden p-2 rounded-lg text-white hover:opacity-90 transition-all"
-                      style={{ background: "#0a1a6e" }}
-                      title="Download PDF"
-                    >
-                      <DocumentDownloadIcon className="h-5 w-5" />
-                    </button>
-                  )}
                 </div>
               </div>
             </form>
+
+            {/* Display Date Range Summary */}
+            {filteredAttendance.length > 0 && (
+              <div className="mb-4 text-sm text-gray-500">
+                Showing {filteredAttendance.length} records
+                {filterType === "custom" &&
+                  ` for ${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}`}
+                {searchTerm && ` matching "${searchTerm}"`}
+              </div>
+            )}
 
             {/* Info message for incomplete days */}
             {!dayComplete && (
@@ -635,7 +742,7 @@ const Reports = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {attendance.map((record, index) => (
+                  {filteredAttendance.map((record, index) => (
                     <tr
                       key={index}
                       className="hover:bg-gray-50 transition-colors"
@@ -709,7 +816,7 @@ const Reports = () => {
 
             {/* Mobile Card View - Simplified */}
             <div className="md:hidden divide-y divide-gray-200">
-              {attendance.map((record, index) => (
+              {filteredAttendance.map((record, index) => (
                 <div
                   key={index}
                   className="p-4 hover:bg-gray-50 transition-colors"

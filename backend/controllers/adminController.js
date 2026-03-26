@@ -856,6 +856,46 @@ const getPendingExpiringLeaves = async (req, res) => {
   }
 };
 
+// @desc    Get attendance report for custom date range
+// @route   GET /api/admin/reports/custom
+const getCustomDateReport = async (req, res) => {
+  try {
+    const { startDate, endDate, staffId } = req.query;
+
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    const query = {
+      date: {
+        $gte: start,
+        $lte: end
+      }
+    };
+
+    if (staffId && staffId !== 'all') {
+      query.userId = staffId;
+    }
+
+    const attendance = await Attendance.find(query)
+      .populate({
+        path: 'userId',
+        select: 'email firstName lastName',
+        match: { role: 'staff' }
+      })
+      .sort({ date: 1, 'userId.firstName': 1 });
+
+    const validAttendance = attendance.filter(record => record.userId !== null);
+
+    res.json(validAttendance);
+  } catch (error) {
+    console.error('Error in getCustomDateReport:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = {
   createStaff,
   deleteStaff,
@@ -871,4 +911,5 @@ module.exports = {
   getLiveAttendance,
   autoApproveLeaves,
   getPendingExpiringLeaves,
+  getCustomDateReport
 };
