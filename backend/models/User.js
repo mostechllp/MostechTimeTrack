@@ -31,11 +31,11 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
-  isDeleted: {
+  isActive: {
     type: Boolean,
-    default: false
+    default: true
   },
-  deletedAt: {
+  inactivatedAt: {
     type: Date,
     default: null
   },

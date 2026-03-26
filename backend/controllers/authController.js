@@ -15,22 +15,22 @@ const login = async (req, res) => {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
-    
+
     if (!user) {
-      return res.status(401).json({ message: 'Invalid email or password' });
+      return res.status(401).json({ message: "Invalid email or password" });
     }
-    
-    // Check if user is soft deleted
-    if (user.isDeleted === true) {
-      return res.status(401).json({ 
-        message: 'Your account has been deactivated. Please contact the administrator.',
-        isDeleted: true 
+
+    if (user.isActive === false) {
+      return res.status(401).json({
+        message:
+          "Your account has been deactivated. Please contact the administrator.",
+        isActive: false,
       });
     }
 
     const isPasswordMatch = await user.comparePassword(password);
     if (!isPasswordMatch) {
-      return res.status(401).json({ message: 'Invalid email or password' });
+      return res.status(401).json({ message: "Invalid email or password" });
     }
 
     res.json({
@@ -41,11 +41,11 @@ const login = async (req, res) => {
       lastName: user.lastName,
       profileImage: user.profileImage,
       isFirstLogin: user.isFirstLogin,
-      token: generateToken(user._id)
+      token: generateToken(user._id),
     });
   } catch (error) {
-    console.error('Error in login:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error in login:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 

@@ -40,7 +40,7 @@ export const AuthProvider = ({ children }) => {
 
 
       // Check for deleted account (though this should be caught by error)
-      if (data.isDeleted) {
+      if (data.isActive === false) {
         toast.error(
           "Your account has been deactivated. Please contact administrator.",
           { duration: 5000 }

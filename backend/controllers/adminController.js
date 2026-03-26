@@ -111,8 +111,8 @@ const deleteStaff = async (req, res) => {
     }
     
     // Soft delete - mark as deleted
-    staff.isDeleted = true;
-    staff.deletedAt = new Date();
+    staff.isActive = false;
+    staff.inactivatedAt = new Date();
     await staff.save();
     
     res.json({ 
@@ -123,7 +123,7 @@ const deleteStaff = async (req, res) => {
         firstName: staff.firstName,
         lastName: staff.lastName,
         email: staff.email,
-        isDeleted: staff.isDeleted
+        isActive: staff.isActive
       }
     });
   } catch (error) {
@@ -144,13 +144,13 @@ const restoreStaff = async (req, res) => {
       return res.status(404).json({ message: 'Staff member not found' });
     }
     
-    if (!staff.isDeleted) {
+    if (!staff.isActive) {
       return res.status(400).json({ message: 'Staff member is not deleted' });
     }
     
     // Restore - unmark deleted
-    staff.isDeleted = false;
-    staff.deletedAt = null;
+     staff.isActive = true;
+    staff.inactivatedAt = null;
     await staff.save();
     
     res.json({ 
@@ -207,7 +207,7 @@ const updateStaff = async (req, res) => {
         lastName: staff.lastName,
         email: staff.email,
         joiningDate: staff.joiningDate,
-        isDeleted: staff.isDeleted
+        isActive: staff.isActive
       }
     });
   } catch (error) {
@@ -216,23 +216,61 @@ const updateStaff = async (req, res) => {
   }
 };
 
-// @desc    Get all staff (including soft-deleted if requested)
-// @route   GET /api/admin/staff?includeDeleted=false
+// @desc    Get all staff (with filter for active/inactive)
+// @route   GET /api/admin/staff?includeInactive=false
 const getAllStaff = async (req, res) => {
   try {
-    const { includeDeleted = 'false' } = req.query;
+    const { includeInactive = 'false' } = req.query;
+    console.log('getAllStaff called with includeInactive:', includeInactive);
+    
+    // First, check total users in database
+    const totalUsers = await User.countDocuments();
+    console.log('Total users in database:', totalUsers);
+    
+    const staffUsers = await User.countDocuments({ role: 'staff' });
+    console.log('Total staff users in database:', staffUsers);
+    
+    const activeStaffUsers = await User.countDocuments({ role: 'staff', isActive: true });
+    console.log('Active staff users:', activeStaffUsers);
+    
+    const inactiveStaffUsers = await User.countDocuments({ role: 'staff', isActive: false });
+    console.log('Inactive staff users:', inactiveStaffUsers);
+    
     const query = { role: 'staff' };
     
-    // Only show non-deleted staff by default
-    if (includeDeleted !== 'true') {
-      query.isDeleted = false;
+    // Only show active staff by default
+    if (includeInactive !== 'true') {
+      query.isActive = true;
     }
     
+    console.log('Final query:', JSON.stringify(query, null, 2));
+    
     const staff = await User.find(query).select('-password').sort({ createdAt: -1 });
+    
+    console.log(`Found ${staff.length} staff members`);
+    if (staff.length > 0) {
+      console.log('Staff data sample:', staff.map(s => ({ 
+        id: s._id,
+        email: s.email, 
+        isActive: s.isActive,
+        role: s.role
+      })));
+    } else {
+      console.log('No staff found with query');
+      
+      // Try to find any user to verify connection
+      const anyUser = await User.findOne();
+      console.log('Any user in DB:', anyUser ? {
+        id: anyUser._id,
+        email: anyUser.email,
+        role: anyUser.role
+      } : 'No users found at all');
+    }
+    
     res.json(staff);
   } catch (error) {
     console.error('Error in getAllStaff:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
