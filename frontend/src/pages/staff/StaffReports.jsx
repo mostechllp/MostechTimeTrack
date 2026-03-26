@@ -12,6 +12,7 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   PencilIcon,
+  ChatAlt2Icon,
 } from "@heroicons/react/outline";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -23,10 +24,9 @@ const StaffDailyReports = () => {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [expandedReport, setExpandedReport] = useState(null);
   const [selectedReport, setSelectedReport] = useState(null);
   const [showReportModal, setShowReportModal] = useState(false);
-  const [filterType, setFilterType] = useState("all"); // 'all', 'monthly', 'custom'
+  const [filterType, setFilterType] = useState("all");
   const [dateRange, setDateRange] = useState({
     startDate: new Date(new Date().setDate(1)).toISOString().split("T")[0],
     endDate: new Date().toISOString().split("T")[0],
@@ -64,7 +64,7 @@ const StaffDailyReports = () => {
 
       const queryString = params.toString();
       const { data } = await axiosInstance.get(
-        `${url}${queryString ? `?${queryString}` : ""}`,
+        `${url}${queryString ? `?${queryString}` : ""}`
       );
       setReports(data);
     } catch (error) {
@@ -80,11 +80,13 @@ const StaffDailyReports = () => {
     const workDone = report.workDone?.toLowerCase() || "";
     const accomplishments = report.accomplishments?.toLowerCase() || "";
     const challenges = report.challenges?.toLowerCase() || "";
+    const remarks = report.remarks?.toLowerCase() || "";
     const search = searchTerm.toLowerCase();
     return (
       workDone.includes(search) ||
       accomplishments.includes(search) ||
-      challenges.includes(search)
+      challenges.includes(search) ||
+      remarks.includes(search)
     );
   });
 
@@ -92,7 +94,6 @@ const StaffDailyReports = () => {
     try {
       const doc = new jsPDF();
 
-      // Get title based on filter
       let title = "My Daily Work Reports";
       if (filterType === "monthly") {
         const monthName = new Date().toLocaleString("default", {
@@ -108,7 +109,6 @@ const StaffDailyReports = () => {
         title = `My Daily Work Reports (${new Date(dateRange.startDate).toLocaleDateString()} - ${new Date(dateRange.endDate).toLocaleDateString()})`;
       }
 
-      // Header
       doc.setFontSize(18);
       doc.setTextColor(2, 12, 76);
       doc.text("Mostech Business Solutions", 14, 20);
@@ -135,6 +135,7 @@ const StaffDailyReports = () => {
         "Accomplishments",
         "Challenges",
         "Tomorrow Plan",
+        "Remarks",
       ];
       const tableRows = [];
 
@@ -144,6 +145,7 @@ const StaffDailyReports = () => {
         const accomplishments = report.accomplishments?.substring(0, 80) || "-";
         const challenges = report.challenges?.substring(0, 80) || "-";
         const tomorrowPlan = report.tomorrowPlan?.substring(0, 80) || "-";
+        const remarks = report.remarks?.substring(0, 80) || "-";
 
         tableRows.push([
           date,
@@ -151,6 +153,7 @@ const StaffDailyReports = () => {
           accomplishments,
           challenges,
           tomorrowPlan,
+          remarks,
         ]);
       });
 
@@ -172,14 +175,14 @@ const StaffDailyReports = () => {
           halign: "center",
         },
         columnStyles: {
-          0: { cellWidth: 25 },
-          1: { cellWidth: 45 },
-          2: { cellWidth: 35 },
-          3: { cellWidth: 35 },
-          4: { cellWidth: 35 },
+          0: { cellWidth: 20 },
+          1: { cellWidth: 40 },
+          2: { cellWidth: 30 },
+          3: { cellWidth: 30 },
+          4: { cellWidth: 30 },
+          5: { cellWidth: 30 },
         },
         didDrawPage: function (data) {
-          // Add footer on each page
           const pageCount = doc.internal.getNumberOfPages();
           doc.setFontSize(7);
           doc.setTextColor(150, 150, 150);
@@ -187,7 +190,7 @@ const StaffDailyReports = () => {
             `Page ${data.pageNumber} of ${pageCount}`,
             doc.internal.pageSize.width / 2,
             doc.internal.pageSize.height - 10,
-            { align: "center" },
+            { align: "center" }
           );
         },
       });
@@ -201,29 +204,74 @@ const StaffDailyReports = () => {
   };
 
   const viewReport = (report) => {
-  setSelectedReport(report);
-  setShowReportModal(true);
-};
+    setSelectedReport(report);
+    setShowReportModal(true);
+  };
 
   const handleAddRemark = async (remark) => {
-  try {
-    await axiosInstance.post(`/staff/reports/${selectedReport._id}/remark`, {
-      remark: remark
-    });
-    toast.success("Remark added successfully");
-    fetchReports(); // Refresh to show new remark
-    return true;
-  } catch (error) {
-    console.error("Error adding remark:", error);
-    toast.error(error.response?.data?.message || "Failed to add remark");
-    throw error;
-  }
-};
+    try {
+      await axiosInstance.post(`/staff/reports/${selectedReport._id}/remark`, {
+        remark: remark,
+      });
+      fetchReports();
+      return true;
+    } catch (error) {
+      console.error("Error adding remark:", error);
+      toast.error(error.response?.data?.message || "Failed to add remark");
+      throw error;
+    }
+  };
+
   const getStatusIcon = (hasContent) => {
     if (hasContent && hasContent.trim()) {
-      return <CheckCircleIcon className="h-4 w-4 text-green-500" />;
+      return <CheckCircleIcon className="h-3 w-3 sm:h-4 sm:w-4 text-green-500" />;
     }
-    return <XCircleIcon className="h-4 w-4 text-gray-300" />;
+    return <XCircleIcon className="h-3 w-3 sm:h-4 sm:w-4 text-gray-300" />;
+  };
+
+  const getPreviewText = (text, maxLength = 100) => {
+    if (!text) return "Not provided";
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + "...";
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "No date";
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "Invalid date";
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    } catch (error) {
+      return "Invalid date", error;
+    }
+  };
+
+  const formatWeekday = (dateString) => {
+    if (!dateString) return "";
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "";
+      return date.toLocaleDateString("en-US", {
+        weekday: "short",
+      });
+    } catch (error) {
+      return "", error;
+    }
+  };
+
+  const formatRemarkDate = (dateString) => {
+    if (!dateString) return "";
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "";
+      return date.toLocaleString();
+    } catch (error) {
+      return "", error;
+    }
   };
 
   if (loading) {
@@ -280,7 +328,7 @@ const StaffDailyReports = () => {
           </div>
         </div>
 
-        {/* Stats Summary - Responsive */}
+        {/* Stats Summary */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           <div className="bg-white rounded-lg shadow p-3 text-center">
             <p className="text-xs text-gray-500">Total Reports</p>
@@ -296,7 +344,7 @@ const StaffDailyReports = () => {
             <p className="text-lg sm:text-xl font-bold text-blue-600">
               {
                 reports.filter(
-                  (r) => new Date(r.date).getMonth() === new Date().getMonth(),
+                  (r) => new Date(r.date).getMonth() === new Date().getMonth()
                 ).length
               }
             </p>
@@ -308,12 +356,9 @@ const StaffDailyReports = () => {
             </p>
           </div>
           <div className="bg-white rounded-lg shadow p-3 text-center">
-            <p className="text-xs text-gray-500">With Plan</p>
-            <p className="text-lg sm:text-xl font-bold text-orange-600">
-              {
-                reports.filter((r) => r.tomorrowPlan && r.tomorrowPlan.trim())
-                  .length
-              }
+            <p className="text-xs text-gray-500">With Remarks</p>
+            <p className="text-lg sm:text-xl font-bold text-purple-600">
+              {reports.filter((r) => r.remarks && r.remarks.trim()).length}
             </p>
           </div>
         </div>
@@ -326,10 +371,7 @@ const StaffDailyReports = () => {
           >
             <div className="flex items-center space-x-2">
               <FilterIcon className="h-5 w-5" style={{ color: "#020c4c" }} />
-              <span
-                className="font-medium text-sm"
-                style={{ color: "#020c4c" }}
-              >
+              <span className="font-medium text-sm" style={{ color: "#020c4c" }}>
                 {showFilters ? "Hide Filters" : "Show Filters"}
               </span>
             </div>
@@ -341,7 +383,7 @@ const StaffDailyReports = () => {
           </button>
         </div>
 
-        {/* Filter Section - Responsive */}
+        {/* Filter Section */}
         <div className={`${showFilters ? "block" : "hidden md:block"} mb-6`}>
           <div className="bg-white rounded-xl shadow-lg p-4">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -424,7 +466,7 @@ const StaffDailyReports = () => {
           </div>
         </div>
 
-        {/* Reports List - Responsive */}
+        {/* Reports Grid */}
         {filteredReports.length === 0 ? (
           <div className="bg-white rounded-xl shadow-lg p-8 sm:p-12 text-center">
             <DocumentTextIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
@@ -438,103 +480,94 @@ const StaffDailyReports = () => {
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {filteredReports.map((report, index) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filteredReports.map((report) => (
               <div
                 key={report._id}
-                className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 overflow-hidden"
+                className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 overflow-hidden flex flex-col h-full"
               >
-                <div
-                  className="p-4 cursor-pointer hover:bg-gray-50"
-                  onClick={() =>
-                    setExpandedReport(expandedReport === index ? null : index)
-                  }
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex items-start sm:items-center space-x-3">
-                      <div className="flex-shrink-0">
-                        <CalendarIcon className="h-5 w-5 text-gray-400" />
-                      </div>
+                {/* Card Header */}
+                <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center space-x-2">
+                      <CalendarIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
                       <div>
-                        <p className="font-semibold text-gray-900 text-sm sm:text-base">
-                          {new Date(report.date).toLocaleDateString("en-US", {
-                            weekday: "long",
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })}
+                        <p className="font-semibold text-gray-900 text-sm">
+                          {formatDate(report.date)}
                         </p>
-                        <div className="flex flex-wrap items-center gap-3 mt-1">
-                          <div className="flex items-center space-x-1">
-                            {getStatusIcon(report.workDone)}
-                            <span className="text-xs text-gray-500">Work</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            {getStatusIcon(report.accomplishments)}
-                            <span className="text-xs text-gray-500">
-                              Accomplishments
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            {getStatusIcon(report.tomorrowPlan)}
-                            <span className="text-xs text-gray-500">Plan</span>
-                          </div>
-                        </div>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          {formatWeekday(report.date)}
+                        </p>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {expandedReport === index && (
-                  <div className="px-4 pb-4 pt-2 border-t border-gray-100 bg-gray-50">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                      <div>
-                        <h4 className="text-sm font-semibold text-gray-700 flex items-center space-x-2 mb-2">
-                          <DocumentTextIcon className="h-4 w-4" />
-                          <span>What I did today</span>
+                {/* Card Body */}
+                <div className="p-4 flex-1">
+                  <div className="space-y-3">
+                    {/* Work Done Preview */}
+                    <div>
+                      <div className="flex items-center space-x-1 mb-1">
+                        {getStatusIcon(report.workDone)}
+                        <h4 className="text-xs font-semibold text-gray-700">
+                          Work Done
                         </h4>
-                        <p className="text-sm text-gray-600 bg-white p-3 rounded-lg">
-                          {report.workDone || "Not provided"}
-                        </p>
                       </div>
-                      <div>
-                        <h4 className="text-sm font-semibold text-gray-700 flex items-center space-x-2 mb-2">
-                          <CheckCircleIcon className="h-4 w-4 text-green-500" />
-                          <span>Key Accomplishments</span>
-                        </h4>
-                        <p className="text-sm text-gray-600 bg-white p-3 rounded-lg">
-                          {report.accomplishments || "Not provided"}
-                        </p>
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-semibold text-gray-700 flex items-center space-x-2 mb-2">
-                          <XCircleIcon className="h-4 w-4 text-orange-500" />
-                          <span>Challenges / Blockers</span>
-                        </h4>
-                        <p className="text-sm text-gray-600 bg-white p-3 rounded-lg">
-                          {report.challenges || "Not provided"}
-                        </p>
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-semibold text-gray-700 flex items-center space-x-2 mb-2">
-                          <ClockIcon className="h-4 w-4 text-blue-500" />
-                          <span>Plan for Tomorrow</span>
-                        </h4>
-                        <p className="text-sm text-gray-600 bg-white p-3 rounded-lg">
-                          {report.tomorrowPlan || "Not provided"}
-                        </p>
-                      </div>
+                      <p className="text-xs text-gray-600 line-clamp-2">
+                        {getPreviewText(report.workDone, 80)}
+                      </p>
                     </div>
-                    <div className="mt-3 text-right">
-                      <button
-                        onClick={() => viewReport(report)}
-                        className="text-sm text-blue-600 hover:text-blue-800"
-                      >
-                        View Full Report →
-                      </button>
+
+                    {/* Accomplishments Preview */}
+                    <div>
+                      <div className="flex items-center space-x-1 mb-1">
+                        {getStatusIcon(report.accomplishments)}
+                        <h4 className="text-xs font-semibold text-gray-700">
+                          Accomplishments
+                        </h4>
+                      </div>
+                      <p className="text-xs text-gray-600 line-clamp-2">
+                        {getPreviewText(report.accomplishments, 80)}
+                      </p>
                     </div>
+
+                    {/* Remarks Section - Display if exists */}
+                    {report.remarks && report.remarks.trim() && (
+                      <div className="mt-2 pt-2 border-t border-gray-100">
+                        <div className="flex items-center space-x-1 mb-1">
+                          <ChatAlt2Icon className="h-3 w-3 text-purple-500" />
+                          <h4 className="text-xs font-semibold text-purple-700">
+                            Remarks
+                          </h4>
+                        </div>
+                        <p className="text-xs text-gray-600 line-clamp-2">
+                          {getPreviewText(report.remarks, 80)}
+                        </p>
+                        {report.remarkAddedAt && (
+                          <p className="text-xs text-purple-500 mt-1 flex items-center space-x-1">
+                            <ClockIcon className="h-3 w-3" />
+                            <span>Added: {formatRemarkDate(report.remarkAddedAt)}</span>
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
+
+                {/* Card Footer */}
+                <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                    </div>
+                    <button
+                      onClick={() => viewReport(report)}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                    >
+                      View Details →
+                    </button>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -542,16 +575,16 @@ const StaffDailyReports = () => {
       </div>
 
       <ReportModal
-  isOpen={showReportModal}
-  onClose={() => {
-    setShowReportModal(false);
-    setSelectedReport(null);
-  }}
-  date={selectedReport?.date}
-  existingReport={selectedReport}
-  onAddRemark={handleAddRemark}
-  onSubmit={() => {}} // No submit for view mode
-/>
+        isOpen={showReportModal}
+        onClose={() => {
+          setShowReportModal(false);
+          setSelectedReport(null);
+        }}
+        date={selectedReport?.date}
+        existingReport={selectedReport}
+        onAddRemark={handleAddRemark}
+        onSubmit={() => {}}
+      />
     </div>
   );
 };
