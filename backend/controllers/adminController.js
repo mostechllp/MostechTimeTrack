@@ -556,7 +556,7 @@ const getDashboardStats = async (req, res) => {
     res.json({
       totalStaff,
       presentToday: punchedInToday,
-      activeNow: currentlyWorking, 
+      activeNow: currentlyWorking,
       leaveStats,
       recentActivity,
     });
@@ -674,12 +674,18 @@ const getLiveAttendance = async (req, res) => {
         $lt: tomorrow,
       },
     })
-      .populate("userId", "email firstName lastName")
+      .populate("userId", "email firstName lastName role") 
       .sort({ "userId.firstName": 1 });
+
+    // Filter out admin users from the records
+    const filteredAttendance = attendance.filter((record) => {
+      // Only include staff members (not admin)
+      return record.userId && record.userId.role === "staff";
+    });
 
     // Calculate current status for each record
     const now = new Date();
-    const liveData = attendance.map((record) => {
+    const liveData = filteredAttendance.map((record) => {
       const recordObj = record.toObject();
 
       // Check if currently punched in and not punched out

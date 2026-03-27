@@ -85,11 +85,11 @@ const AdminDashboard = () => {
   const fetchLiveData = async () => {
     try {
       const response = await axiosInstance.get("/admin/reports/live");
-      const activeStaff = response.data?.records?.filter(r => r.isActive) || [];
-      setWorkingStaffList(activeStaff);
+      console.log("Live response: ", response)
+      setWorkingStaffList(response.data?.records);
       setStats((prev) => ({
         ...prev,
-        activeNow: activeStaff.length,
+        activeNow: response.data?.records?.length,
       }));
     } catch (error) {
       console.error("Error fetching live data:", error);
