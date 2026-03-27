@@ -99,36 +99,36 @@ const createStaff = async (req, res) => {
 const deleteStaff = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const staff = await User.findById(id);
-    
+
     if (!staff) {
-      return res.status(404).json({ message: 'Staff member not found' });
+      return res.status(404).json({ message: "Staff member not found" });
     }
-    
-    if (staff.role === 'admin') {
-      return res.status(403).json({ message: 'Cannot delete admin users' });
+
+    if (staff.role === "admin") {
+      return res.status(403).json({ message: "Cannot delete admin users" });
     }
-    
+
     // Soft delete - mark as deleted
     staff.isActive = false;
     staff.inactivatedAt = new Date();
     await staff.save();
-    
-    res.json({ 
-      success: true, 
-      message: 'Staff member inactivated successfully',
+
+    res.json({
+      success: true,
+      message: "Staff member inactivated successfully",
       staff: {
         _id: staff._id,
         firstName: staff.firstName,
         lastName: staff.lastName,
         email: staff.email,
-        isActive: staff.isActive
-      }
+        isActive: staff.isActive,
+      },
     });
   } catch (error) {
-    console.error('Error in deleteStaff:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error in deleteStaff:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -137,35 +137,37 @@ const deleteStaff = async (req, res) => {
 const restoreStaff = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const staff = await User.findById(id);
-    
+
     if (!staff) {
-      return res.status(404).json({ message: 'Staff member not found' });
+      return res.status(404).json({ message: "Staff member not found" });
     }
-    
+
     if (staff.isActive === true) {
-      return res.status(400).json({ message: 'Staff member is not deactivated' });
+      return res
+        .status(400)
+        .json({ message: "Staff member is not deactivated" });
     }
-    
+
     // Restore - unmark deleted
-     staff.isActive = true;
+    staff.isActive = true;
     staff.inactivatedAt = null;
     await staff.save();
-    
-    res.json({ 
-      success: true, 
-      message: 'Staff member restored successfully',
+
+    res.json({
+      success: true,
+      message: "Staff member restored successfully",
       staff: {
         _id: staff._id,
         firstName: staff.firstName,
         lastName: staff.lastName,
-        email: staff.email
-      }
+        email: staff.email,
+      },
     });
   } catch (error) {
-    console.error('Error in restoreStaff:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error in restoreStaff:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -175,17 +177,17 @@ const updateStaff = async (req, res) => {
   try {
     const { id } = req.params;
     const { firstName, lastName, email, joiningDate } = req.body;
-    
+
     const staff = await User.findById(id);
-    
+
     if (!staff) {
-      return res.status(404).json({ message: 'Staff member not found' });
+      return res.status(404).json({ message: "Staff member not found" });
     }
-    
-    if (staff.role === 'admin') {
-      return res.status(403).json({ message: 'Cannot modify admin users' });
+
+    if (staff.role === "admin") {
+      return res.status(403).json({ message: "Cannot modify admin users" });
     }
-    
+
     // Update fields
     if (firstName) staff.firstName = firstName;
     if (lastName) staff.lastName = lastName;
@@ -195,24 +197,24 @@ const updateStaff = async (req, res) => {
       parsedDate.setHours(0, 0, 0, 0);
       staff.joiningDate = parsedDate;
     }
-    
+
     await staff.save();
-    
-    res.json({ 
-      success: true, 
-      message: 'Staff member updated successfully',
+
+    res.json({
+      success: true,
+      message: "Staff member updated successfully",
       staff: {
         _id: staff._id,
         firstName: staff.firstName,
         lastName: staff.lastName,
         email: staff.email,
         joiningDate: staff.joiningDate,
-        isActive: staff.isActive
-      }
+        isActive: staff.isActive,
+      },
     });
   } catch (error) {
-    console.error('Error in updateStaff:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error in updateStaff:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -220,30 +222,37 @@ const updateStaff = async (req, res) => {
 // @route   GET /api/admin/staff?includeInactive=false
 const getAllStaff = async (req, res) => {
   try {
-    const { includeInactive = 'false' } = req.query;
-    
+    const { includeInactive = "false" } = req.query;
+
     // First, check total users in database
     const totalUsers = await User.countDocuments();
-    
-    const staffUsers = await User.countDocuments({ role: 'staff' });
-    
-    const activeStaffUsers = await User.countDocuments({ role: 'staff', isActive: true });
-    
-    const inactiveStaffUsers = await User.countDocuments({ role: 'staff', isActive: false });
-    
-    const query = { role: 'staff' };
-    
+
+    const staffUsers = await User.countDocuments({ role: "staff" });
+
+    const activeStaffUsers = await User.countDocuments({
+      role: "staff",
+      isActive: true,
+    });
+
+    const inactiveStaffUsers = await User.countDocuments({
+      role: "staff",
+      isActive: false,
+    });
+
+    const query = { role: "staff" };
+
     // Only show active staff by default
-    if (includeInactive !== 'true') {
+    if (includeInactive !== "true") {
       query.isActive = true;
     }
-    
-    
-    const staff = await User.find(query).select('-password').sort({ createdAt: -1 });
+
+    const staff = await User.find(query)
+      .select("-password")
+      .sort({ createdAt: -1 });
     res.json(staff);
   } catch (error) {
-    console.error('Error in getAllStaff:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error("Error in getAllStaff:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -256,37 +265,36 @@ const getMonthlyReport = async (req, res) => {
     const startDate = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
     const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
 
-
     // Build query
     const query = {
       date: {
         $gte: startDate,
-        $lte: endDate
-      }
+        $lte: endDate,
+      },
     };
 
-    if (staffId && staffId !== 'all') {
+    if (staffId && staffId !== "all") {
       query.userId = staffId;
     }
 
     // Get all attendance records - no day completion filter
     const attendance = await Attendance.find(query)
       .populate({
-        path: 'userId',
-        select: 'email firstName lastName',
-        match: { role: 'staff' }
+        path: "userId",
+        select: "email firstName lastName",
+        match: { role: "staff" },
       })
-      .sort({ date: 1, 'userId.firstName': 1 });
-
+      .sort({ date: 1, "userId.firstName": 1 });
 
     // Filter out records where userId is null (deleted users)
-    const validAttendance = attendance.filter(record => record.userId !== null);
+    const validAttendance = attendance.filter(
+      (record) => record.userId !== null,
+    );
 
     res.json(validAttendance);
-    
   } catch (error) {
-    console.error('Error in getMonthlyReport:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error in getMonthlyReport:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -338,9 +346,10 @@ const updateLeaveStatus = async (req, res) => {
     await leave.save();
 
     // Format date range for email
-    const dateRange = leave.startDate && leave.endDate
-      ? `${new Date(leave.startDate).toLocaleDateString()} to ${new Date(leave.endDate).toLocaleDateString()}`
-      : new Date(leave.date).toLocaleDateString();
+    const dateRange =
+      leave.startDate && leave.endDate
+        ? `${new Date(leave.startDate).toLocaleDateString()} to ${new Date(leave.endDate).toLocaleDateString()}`
+        : new Date(leave.date).toLocaleDateString();
 
     // Send email notification
     const emailSubject =
@@ -372,7 +381,7 @@ const updateLeaveStatus = async (req, res) => {
           <div class="content">
             <div class="approved">
               <p>Your leave request for <strong>${dateRange}</strong> has been <strong>APPROVED</strong>.</p>
-              <p><strong>Total Leave Days:</strong> ${leave.leaveDays} day${leave.leaveDays !== 1 ? 's' : ''}</p>
+              <p><strong>Total Leave Days:</strong> ${leave.leaveDays} day${leave.leaveDays !== 1 ? "s" : ""}</p>
             </div>
             <div class="screenshot-link">
               <p>Your uploaded screenshot: <a href="${leave.emailScreenshot}" target="_blank">View Image</a></p>
@@ -404,7 +413,7 @@ const updateLeaveStatus = async (req, res) => {
           <div class="content">
             <div class="rejected">
               <p>Your leave request for <strong>${dateRange}</strong> has been <strong>REJECTED</strong>.</p>
-              <p><strong>Requested Days:</strong> ${leave.leaveDays} day${leave.leaveDays !== 1 ? 's' : ''}</p>
+              <p><strong>Requested Days:</strong> ${leave.leaveDays} day${leave.leaveDays !== 1 ? "s" : ""}</p>
               ${rejectionReason ? `<p><strong>Reason:</strong> ${rejectionReason}</p>` : ""}
             </div>
             <p>Please contact your manager if you have any questions.</p>
@@ -477,7 +486,10 @@ const cleanupOldRejectedLeaves = async (req, res) => {
 const getDashboardStats = async (req, res) => {
   try {
     // Get total staff count (active only)
-    const totalStaff = await User.countDocuments({ role: 'staff', isActive: true });
+    const totalStaff = await User.countDocuments({
+      role: "staff",
+      isActive: true,
+    });
 
     // Get today's date range
     const today = new Date();
@@ -494,55 +506,63 @@ const getDashboardStats = async (req, res) => {
     });
 
     // Count punched in today (anyone who has punchIn today)
-    const punchedInToday = todayAttendance.filter(record => record.punchIn).length;
-    
-    // Count currently working (punched in but not punched out)
-    const currentlyWorking = todayAttendance.filter(record => 
-      record.punchIn && !record.punchOut
+    const punchedInToday = todayAttendance.filter(
+      (record) => record.punchIn,
+    ).length;
+
+    // Count currently working (punched in but not punched out) - THIS IS THE KEY
+    const currentlyWorking = todayAttendance.filter(
+      (record) => record.punchIn && !record.punchOut,
     ).length;
 
     // Get pending leave requests count
-    const pendingLeaves = await Leave.countDocuments({ status: 'pending' });
+    const pendingLeaves = await Leave.countDocuments({ status: "pending" });
 
     // Get recent activity (last 5 attendance records)
     const recentActivity = await Attendance.find()
-      .populate('userId', 'firstName lastName email')
+      .populate("userId", "firstName lastName email")
       .sort({ date: -1 })
       .limit(5)
-      .select('userId date status totalWorkedHours punchIn punchOut');
+      .select("userId date status totalWorkedHours punchIn punchOut");
 
     // Get leave requests summary
     const leaveSummary = await Leave.aggregate([
       {
         $group: {
-          _id: '$status',
-          count: { $sum: 1 }
-        }
-      }
+          _id: "$status",
+          count: { $sum: 1 },
+        },
+      },
     ]);
 
     // Format leave summary
     const leaveStats = {
       pending: 0,
       approved: 0,
-      rejected: 0
+      rejected: 0,
     };
 
-    leaveSummary.forEach(item => {
+    leaveSummary.forEach((item) => {
       leaveStats[item._id] = item.count;
+    });
+
+    console.log("Dashboard Stats:", {
+      totalStaff,
+      punchedInToday,
+      currentlyWorking, // Should be 3
+      pendingLeaves,
     });
 
     res.json({
       totalStaff,
       presentToday: punchedInToday,
-      activeNow: currentlyWorking,
-      pendingLeaves,
+      activeNow: currentlyWorking, 
       leaveStats,
-      recentActivity
+      recentActivity,
     });
   } catch (error) {
-    console.error('Error getting dashboard stats:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error getting dashboard stats:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -551,89 +571,91 @@ const getDashboardStats = async (req, res) => {
 const getAttendanceSummary = async (req, res) => {
   try {
     const { days = 7 } = req.query;
-    
+
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
-    
+
     // Get all attendance records for the period
     const attendance = await Attendance.find({
       date: {
         $gte: startDate,
-        $lte: endDate
-      }
+        $lte: endDate,
+      },
     });
-    
+
     // Get today's date for live adjustment
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    
+
     // Get today's active working records
     const todayRecords = await Attendance.find({
       date: {
         $gte: today,
-        $lt: tomorrow
-      }
+        $lt: tomorrow,
+      },
     });
-    
-    const currentlyWorking = todayRecords.filter(r => r.punchIn && !r.punchOut).length;
-    
+
+    const currentlyWorking = todayRecords.filter(
+      (r) => r.punchIn && !r.punchOut,
+    ).length;
+
     // Group by date
     const summary = [];
     const dateMap = new Map();
-    
-    attendance.forEach(record => {
-      const dateStr = record.date.toISOString().split('T')[0];
-      const isToday = dateStr === today.toISOString().split('T')[0];
-      
+
+    attendance.forEach((record) => {
+      const dateStr = record.date.toISOString().split("T")[0];
+      const isToday = dateStr === today.toISOString().split("T")[0];
+
       let status = record.status;
       // If it's today and still working, count as working (NOT present)
       if (isToday && record.punchIn && !record.punchOut) {
-        status = 'working';
+        status = "working";
       }
-      
+
       if (!dateMap.has(dateStr)) {
         dateMap.set(dateStr, {
           date: dateStr,
           present: 0,
           absent: 0,
-          'half-day': 0,
-          working: 0
+          "half-day": 0,
+          working: 0,
         });
       }
-      
+
       const dayData = dateMap.get(dateStr);
-      if (status === 'present') dayData.present++;
-      else if (status === 'half-day') dayData['half-day']++;
-      else if (status === 'absent') dayData.absent++;
-      else if (status === 'working') dayData.working++;
+      if (status === "present") dayData.present++;
+      else if (status === "half-day") dayData["half-day"]++;
+      else if (status === "absent") dayData.absent++;
+      else if (status === "working") dayData.working++;
     });
-    
+
     // Convert to array and sort by date
     dateMap.forEach((value, key) => {
       summary.push(value);
     });
     summary.sort((a, b) => new Date(a.date) - new Date(b.date));
-    
+
     // Format for chart - DO NOT add working to present
-    const formattedSummary = summary.map(item => ({
-      date: new Date(item.date).toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric'
+    const formattedSummary = summary.map((item) => ({
+      date: new Date(item.date).toLocaleDateString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
       }),
-      present: item.present,        
+      present: item.present,
       absent: item.absent,
-      'half-day': item['half-day'],
-      working: item.working         
+      "half-day": item["half-day"],
+      working: item.working,
     }));
-    
+
     res.json(formattedSummary);
   } catch (error) {
-    console.error('Error getting attendance summary:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error getting attendance summary:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -659,16 +681,16 @@ const getLiveAttendance = async (req, res) => {
     const now = new Date();
     const liveData = attendance.map((record) => {
       const recordObj = record.toObject();
-      
+
       // Check if currently punched in and not punched out
       const isActive = record.punchIn && !record.punchOut;
-      
+
       // Determine display status
       let displayStatus = record.status;
       if (isActive) {
         displayStatus = "working";
       }
-      
+
       return {
         ...recordObj,
         isActive: isActive,
@@ -861,38 +883,39 @@ const getCustomDateReport = async (req, res) => {
 
     const start = new Date(startDate);
     start.setHours(0, 0, 0, 0);
-    
+
     const end = new Date(endDate);
     end.setHours(23, 59, 59, 999);
 
     const query = {
       date: {
         $gte: start,
-        $lte: end
-      }
+        $lte: end,
+      },
     };
 
-    if (staffId && staffId !== 'all') {
+    if (staffId && staffId !== "all") {
       query.userId = staffId;
     }
 
     const attendance = await Attendance.find(query)
       .populate({
-        path: 'userId',
-        select: 'email firstName lastName',
-        match: { role: 'staff' }
+        path: "userId",
+        select: "email firstName lastName",
+        match: { role: "staff" },
       })
-      .sort({ date: 1, 'userId.firstName': 1 });
+      .sort({ date: 1, "userId.firstName": 1 });
 
-    const validAttendance = attendance.filter(record => record.userId !== null);
+    const validAttendance = attendance.filter(
+      (record) => record.userId !== null,
+    );
 
     res.json(validAttendance);
   } catch (error) {
-    console.error('Error in getCustomDateReport:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Error in getCustomDateReport:", error);
+    res.status(500).json({ message: "Server error" });
   }
 };
-
 
 module.exports = {
   createStaff,
@@ -909,5 +932,5 @@ module.exports = {
   getLiveAttendance,
   autoApproveLeaves,
   getPendingExpiringLeaves,
-  getCustomDateReport
+  getCustomDateReport,
 };

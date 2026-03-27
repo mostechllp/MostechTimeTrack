@@ -36,7 +36,7 @@ const AdminDashboard = () => {
 
   const [attendanceData, setAttendanceData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [liveRecords, setLiveRecords] = useState([]);
+  const [, setWorkingStaffList] = useState([]);
 
   useEffect(() => {
     fetchAllData();
@@ -85,12 +85,11 @@ const AdminDashboard = () => {
   const fetchLiveData = async () => {
     try {
       const response = await axiosInstance.get("/admin/reports/live");
-      const activeCount =
-        response.data?.records?.filter((r) => r.isActive).length || 0;
-      setLiveRecords(response.data?.records || []);
+      const activeStaff = response.data?.records?.filter(r => r.isActive) || [];
+      setWorkingStaffList(activeStaff);
       setStats((prev) => ({
         ...prev,
-        activeNow: activeCount,
+        activeNow: activeStaff.length,
       }));
     } catch (error) {
       console.error("Error fetching live data:", error);
@@ -104,41 +103,18 @@ const AdminDashboard = () => {
       );
       const rawData = response.data || [];
 
-      // Get today's date
-      const today = new Date().toDateString();
-      
-      // Get currently working staff count
-      const workingCount = liveRecords.filter(r => r.isActive).length;
-      
-      // Format data for charts - DO NOT add working staff to present count
-      const formattedData = rawData.map((item) => {
-        const itemDate = new Date(item.date);
-        const isToday = itemDate.toDateString() === today;
-        
-        let presentCount = item.present || 0;
-        let halfDayCount = item["half-day"] || 0;
-        let absentCount = item.absent || 0;
-        
-        // If this is today's data, adjust counts
-        if (isToday && workingCount > 0) {
-          // Working staff are NOT present yet - they are separate
-          // Remove working staff from absent if they were counted there
-          absentCount = Math.max(0, absentCount - workingCount);
-        }
-        
-        return {
-          date: itemDate.toLocaleDateString("en-US", {
-            weekday: "short",
-            month: "short",
-            day: "numeric",
-          }),
-          present: presentCount,
-          absent: absentCount,
-          "half-day": halfDayCount,
-          working: isToday ? workingCount : 0,
-          total: presentCount + absentCount + halfDayCount + (isToday ? workingCount : 0),
-        };
-      });
+      // Format data for charts
+      const formattedData = rawData.map((item) => ({
+        date: new Date(item.date).toLocaleDateString("en-US", {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        }),
+        present: item.present || 0,
+        absent: item.absent || 0,
+        "half-day": item["half-day"] || 0,
+        working: item.working || 0,
+      }));
 
       setAttendanceData(formattedData);
     } catch (error) {
@@ -208,11 +184,12 @@ const AdminDashboard = () => {
     );
   }
 
-  // Calculate totals for display - separate working staff from present
+  // Calculate totals for display - USE LIVE WORKING COUNT for the summary
   const totalPresent = attendanceData.reduce((sum, day) => sum + day.present, 0);
   const totalHalfDay = attendanceData.reduce((sum, day) => sum + day["half-day"], 0);
   const totalAbsent = attendanceData.reduce((sum, day) => sum + day.absent, 0);
-  const totalWorking = attendanceData.reduce((sum, day) => sum + (day.working || 0), 0);
+  // Use the live working count for today's summary
+  const totalWorking = stats.activeNow;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -394,7 +371,7 @@ const AdminDashboard = () => {
                 </div>
               )}
 
-              {/* Attendance Rate Summary */}
+              {/* Attendance Rate Summary - USING LIVE DATA FOR WORKING NOW */}
               <div className="grid grid-cols-4 gap-3 mt-6 pt-4 border-t border-gray-100">
                 <div className="text-center">
                   <p className="text-2xl font-bold text-emerald-600">
