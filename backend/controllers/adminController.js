@@ -571,18 +571,31 @@ const getDashboardStats = async (req, res) => {
 const getAttendanceSummary = async (req, res) => {
   try {
     const { days = 7 } = req.query;
+    const daysNum = parseInt(days);
 
     const endDate = new Date();
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
 
-    // Get all attendance records for the period
+    if (daysNum === 1) {
+      // For today, start from today 00:00:00
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
+    } else {
+      startDate.setDate(startDate.getDate() - daysNum);
+    }
+
+    // Get all attendance records for the period and populate user role
     const attendance = await Attendance.find({
       date: {
         $gte: startDate,
         $lte: endDate,
       },
-    });
+    }).populate("userId", "role");
+
+    // Filter to only staff members
+    const staffAttendance = attendance.filter(
+      (record) => record.userId && record.userId.role === "staff",
+    );
 
     // Get today's date for live adjustment
     const today = new Date();
@@ -590,12 +603,11 @@ const getAttendanceSummary = async (req, res) => {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Get today's active working records
-    const todayRecords = await Attendance.find({
-      date: {
-        $gte: today,
-        $lt: tomorrow,
-      },
+    // Get today's active working records for staff only
+    const todayRecords = staffAttendance.filter((record) => {
+      const recordDate = new Date(record.date);
+      recordDate.setHours(0, 0, 0, 0);
+      return recordDate.getTime() === today.getTime();
     });
 
     const currentlyWorking = todayRecords.filter(
@@ -606,7 +618,7 @@ const getAttendanceSummary = async (req, res) => {
     const summary = [];
     const dateMap = new Map();
 
-    attendance.forEach((record) => {
+    staffAttendance.forEach((record) => {
       const dateStr = record.date.toISOString().split("T")[0];
       const isToday = dateStr === today.toISOString().split("T")[0];
 
@@ -639,13 +651,9 @@ const getAttendanceSummary = async (req, res) => {
     });
     summary.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    // Format for chart - DO NOT add working to present
+    // Format for chart
     const formattedSummary = summary.map((item) => ({
-      date: new Date(item.date).toLocaleDateString("en-US", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-      }),
+      date: item.date,
       present: item.present,
       absent: item.absent,
       "half-day": item["half-day"],
@@ -674,7 +682,7 @@ const getLiveAttendance = async (req, res) => {
         $lt: tomorrow,
       },
     })
-      .populate("userId", "email firstName lastName role") 
+      .populate("userId", "email firstName lastName role")
       .sort({ "userId.firstName": 1 });
 
     // Filter out admin users from the records
