@@ -579,15 +579,6 @@ const StaffManagement = () => {
                                 <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                                   Active
                                 </span>
-                                {isCurrentlyWorking && (
-                                  <span className="inline-flex items-center space-x-1 text-xs text-green-600">
-                                    <span className="relative flex h-2 w-2">
-                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                                    </span>
-                                    <span>Working Now</span>
-                                  </span>
-                                )}
                               </>
                             )}
                           </div>

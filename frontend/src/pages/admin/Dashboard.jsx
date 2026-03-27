@@ -1,177 +1,448 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { UsersIcon, CalendarIcon, DocumentReportIcon, InboxIcon, ClockIcon } from '@heroicons/react/outline';
-import toast from 'react-hot-toast';
-import axiosInstance from '../../utils/axiosConfig';
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import {
+  UsersIcon,
+  CalendarIcon,
+  DocumentReportIcon,
+  InboxIcon,
+  ClockIcon,
+} from "@heroicons/react/outline";
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+import toast from "react-hot-toast";
+import axiosInstance from "../../utils/axiosConfig";
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState({
     totalStaff: 0,
     presentToday: 0,
+    activeNow: 0,
     pendingLeaves: 0,
     leaveStats: {
       pending: 0,
       approved: 0,
-      rejected: 0
+      rejected: 0,
     },
-    recentActivity: []
+    recentActivity: [],
   });
-  
+
+  const [attendanceData, setAttendanceData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [liveRecords, setLiveRecords] = useState([]);
 
   useEffect(() => {
-    fetchDashboardData();
+    fetchAllData();
+
+    // Refresh live data every 30 seconds
+    const interval = setInterval(fetchLiveData, 30000);
+    return () => clearInterval(interval);
   }, []);
 
-  const fetchDashboardData = async () => {
+  const fetchAllData = async () => {
     try {
       setLoading(true);
-      
-      // Fetch stats
-      const statsResponse = await axiosInstance.get('/admin/dashboard/stats');
-      setStats(statsResponse.data);
-      
+      await Promise.all([
+        fetchDashboardData(),
+        fetchLiveData(),
+        fetchAttendanceSummary(),
+      ]);
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      toast.error('Failed to load dashboard data');
+      console.error("Error fetching data:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const statCards = [
-    { 
-      title: 'Total Staff', 
-      value: stats.totalStaff.toString(), 
-      icon: UsersIcon, 
-      color: 'from-blue-500 to-blue-600',
-      bgColor: 'bg-blue-50',
-      textColor: 'text-blue-600',
-      link: '/admin/staff'
-    },
-    { 
-      title: 'Present Today', 
-      value: stats.presentToday.toString(), 
-      icon: CalendarIcon, 
-      color: 'from-green-500 to-green-600',
-      bgColor: 'bg-green-50',
-      textColor: 'text-green-600',
-      link: '/admin/reports'
-    },
-    { 
-      title: 'Pending Leaves', 
-      value: stats.pendingLeaves.toString(), 
-      icon: InboxIcon, 
-      color: 'from-yellow-500 to-yellow-600',
-      bgColor: 'bg-yellow-50',
-      textColor: 'text-yellow-600',
-      link: '/admin/leaves'
-    },
-    { 
-      title: 'Approved Leaves', 
-      value: stats.leaveStats?.approved?.toString() || '0', 
-      icon: DocumentReportIcon, 
-      color: 'from-purple-500 to-purple-600',
-      bgColor: 'bg-purple-50',
-      textColor: 'text-purple-600',
-      link: '/admin/leaves'
+  const fetchDashboardData = async () => {
+    try {
+      const statsResponse = await axiosInstance.get("/admin/dashboard/stats");
+      setStats((prev) => ({
+        ...prev,
+        totalStaff: statsResponse.data?.totalStaff || 0,
+        presentToday: statsResponse.data?.presentToday || 0,
+        pendingLeaves: statsResponse.data?.pendingLeaves || 0,
+        leaveStats: {
+          pending: statsResponse.data?.leaveStats?.pending || 0,
+          approved: statsResponse.data?.leaveStats?.approved || 0,
+          rejected: statsResponse.data?.leaveStats?.rejected || 0,
+        },
+        recentActivity: statsResponse.data?.recentActivity || [],
+      }));
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+      toast.error("Failed to load dashboard data");
     }
+  };
+
+  const fetchLiveData = async () => {
+    try {
+      const response = await axiosInstance.get("/admin/reports/live");
+      const activeCount =
+        response.data?.records?.filter((r) => r.isActive).length || 0;
+      setLiveRecords(response.data?.records || []);
+      setStats((prev) => ({
+        ...prev,
+        activeNow: activeCount,
+      }));
+    } catch (error) {
+      console.error("Error fetching live data:", error);
+    }
+  };
+
+  const fetchAttendanceSummary = async () => {
+    try {
+      const response = await axiosInstance.get(
+        "/admin/dashboard/attendance-summary?days=7",
+      );
+      const rawData = response.data || [];
+
+      // Get today's date
+      const today = new Date().toDateString();
+      
+      // Get currently working staff count
+      const workingCount = liveRecords.filter(r => r.isActive).length;
+      
+      // Get total staff count
+      const totalStaff = stats.totalStaff;
+
+      // Format data for charts with adjustment for currently working staff
+      const formattedData = rawData.map((item) => {
+        const itemDate = new Date(item.date);
+        const isToday = itemDate.toDateString() === today;
+        
+        let presentCount = item.present || 0;
+        let halfDayCount = item["half-day"] || 0;
+        let absentCount = item.absent || 0;
+        
+        // If this is today's data, adjust counts for currently working staff
+        if (isToday && workingCount > 0) {
+          // Currently working staff should be counted as present
+          presentCount = presentCount + workingCount;
+          // If the backend counted them as absent, subtract them
+          absentCount = Math.max(0, absentCount - workingCount);
+        }
+        
+        return {
+          date: itemDate.toLocaleDateString("en-US", {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+          }),
+          present: presentCount,
+          absent: absentCount,
+          "half-day": halfDayCount,
+          total: presentCount + absentCount + halfDayCount,
+          attendanceRate: totalStaff
+            ? (((presentCount + halfDayCount * 0.5) / totalStaff) * 100).toFixed(1)
+            : 0,
+        };
+      });
+
+      setAttendanceData(formattedData);
+    } catch (error) {
+      console.error("Error fetching attendance summary:", error);
+    }
+  };
+
+  const statCards = [
+    {
+      title: "Total Staff",
+      value: stats.totalStaff.toString(),
+      icon: UsersIcon,
+      bgColor: "bg-blue-50",
+      textColor: "text-blue-600",
+      link: "/admin/staff",
+    },
+    {
+      title: "Currently Working",
+      value: stats.activeNow.toString(),
+      icon: ClockIcon,
+      bgColor: "bg-emerald-50",
+      textColor: "text-emerald-600",
+      link: "/admin/reports",
+    },
+    {
+      title: "Pending Leaves",
+      value: stats.pendingLeaves.toString(),
+      icon: InboxIcon,
+      bgColor: "bg-yellow-50",
+      textColor: "text-yellow-600",
+      link: "/admin/leaves",
+    },
   ];
 
   const quickActions = [
-    { title: 'Manage Staff', path: '/admin/staff', description: 'Add, edit, or remove staff members', icon: UsersIcon },
-    { title: 'View Reports', path: '/admin/reports', description: 'Generate monthly attendance reports', icon: DocumentReportIcon },
-    { title: 'Leave Management', path: '/admin/leaves', description: 'Approve or reject leave requests', icon: InboxIcon }
+    {
+      title: "Manage Staff",
+      path: "/admin/staff",
+      description: "Add, edit, or remove staff members",
+      icon: UsersIcon,
+    },
+    {
+      title: "View Reports",
+      path: "/admin/reports",
+      description: "Generate monthly attendance reports",
+      icon: DocumentReportIcon,
+    },
+    {
+      title: "Leave Management",
+      path: "/admin/leaves",
+      description: "Approve or reject leave requests",
+      icon: InboxIcon,
+    },
   ];
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto" style={{ borderColor: '#020c4c' }}></div>
+          <div
+            className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto"
+            style={{ borderColor: "#020c4c" }}
+          ></div>
           <p className="mt-4 text-gray-600">Loading dashboard...</p>
         </div>
       </div>
     );
   }
 
+  // Calculate totals for display
+  const totalPresent = attendanceData.reduce((sum, day) => sum + day.present, 0);
+  const totalHalfDay = attendanceData.reduce((sum, day) => sum + day["half-day"], 0);
+  const totalAbsent = attendanceData.reduce((sum, day) => sum + day.absent, 0);
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-        {/* Header Section */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 sm:mb-8">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold" style={{ color: '#020c4c' }}>
-            Admin Dashboard
+      <div className="container mx-auto px-4 py-6">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-2xl font-bold" style={{ color: "#020c4c" }}>
+            Dashboard
           </h1>
+
+          {stats.activeNow > 0 && (
+            <div className="flex items-center space-x-2 px-3 py-1.5 bg-green-50 rounded-full">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+              </span>
+              <span className="text-sm font-medium text-green-600">
+                {stats.activeNow} currently working
+              </span>
+            </div>
+          )}
         </div>
 
-        {/* Stats Grid - 2x2 on mobile, 4 in row on desktop */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 mb-6 sm:mb-8 lg:mb-10">
-          {statCards.map((stat, index) => (
-            <Link
-              key={index}
-              to={stat.link}
-              className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden group"
-            >
-              <div className="p-3 sm:p-4 lg:p-6">
-                <div className="flex flex-col items-center text-center">
-                  {/* Icon - Large on mobile */}
-                  <div className={`${stat.bgColor} p-2.5 sm:p-3 rounded-xl mb-2 sm:mb-3 group-hover:scale-110 transition-transform duration-300`}>
-                    <stat.icon className={`h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 ${stat.textColor}`} />
+        {/* Split Layout */}
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Left Column - Stats Cards + Chart */}
+          <div className="flex-1">
+            {/* 3 Big Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              {statCards.map((stat, index) => (
+                <Link
+                  key={index}
+                  to={stat.link}
+                  className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all p-6 group hover:-translate-y-1"
+                >
+                  <div className="flex flex-col">
+                    <div className="flex items-center justify-between mb-4">
+                      <div
+                        className={`${stat.bgColor} p-3 rounded-xl group-hover:scale-110 transition-transform`}
+                      >
+                        <stat.icon className={`h-8 w-8 ${stat.textColor}`} />
+                      </div>
+                      <div className="text-right">
+                        <p
+                          className="text-4xl font-bold"
+                          style={{ color: "#020c4c" }}
+                        >
+                          {stat.value}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-gray-600 text-sm font-medium">
+                      {stat.title}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      Click to view →
+                    </p>
                   </div>
-                  
-                  {/* Value - Large and bold */}
-                  <p className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1" style={{ color: '#020c4c' }}>
-                    {stat.value}
+                </Link>
+              ))}
+            </div>
+
+            {/* Attendance Analytics Chart - Area Chart */}
+            <div className="bg-white rounded-xl shadow-md p-6">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    Attendance Trends
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Last 7 days attendance overview
                   </p>
-                  
-                  {/* Title - Smaller on mobile */}
-                  <p className="text-gray-500 text-xs sm:text-sm font-medium">
-                    {stat.title}
-                  </p>
-                  
-                  {/* Optional hover indicator */}
-                  <div className="mt-1 sm:mt-2 text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    View →
+                </div>
+                <div className="flex gap-4 text-xs">
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                    <span className="text-gray-600">Present</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                    <span className="text-gray-600">Half Day</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                    <span className="text-gray-600">Absent</span>
                   </div>
                 </div>
               </div>
-            </Link>
-          ))}
-        </div>
 
-        {/* Quick Actions - Responsive Layout */}
-        <div className="mb-6 sm:mb-8">
-          <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4" style={{ color: '#020c4c' }}>
-            Quick Actions
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {quickActions.map((action, index) => (
-              <Link
-                key={index}
-                to={action.path}
-                className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 group"
-              >
-                <div className="p-4 sm:p-6">
-                  <div className="flex items-start space-x-3 sm:space-x-4">
-                    <div className="p-2 sm:p-3 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 group-hover:from-gray-100 group-hover:to-gray-200 transition-all duration-300">
-                      <action.icon className="h-5 w-5 sm:h-6 sm:w-6" style={{ color: '#020c4c' }} />
+              {attendanceData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={400}>
+                  <AreaChart
+                    data={attendanceData}
+                    margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="colorPresent" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.1}/>
+                      </linearGradient>
+                      <linearGradient id="colorHalfDay" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.1}/>
+                      </linearGradient>
+                      <linearGradient id="colorAbsent" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0.1}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fontSize: 12, fill: '#6b7280' }}
+                      tickLine={false}
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 12, fill: '#6b7280' }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'white', 
+                        borderRadius: '8px',
+                        border: '1px solid #e5e7eb',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                      }}
+                    />
+                    <Legend 
+                      verticalAlign="top" 
+                      height={36}
+                      iconType="circle"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="present"
+                      stroke="#10b981"
+                      strokeWidth={2}
+                      fill="url(#colorPresent)"
+                      name="Present"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="half-day"
+                      stroke="#f59e0b"
+                      strokeWidth={2}
+                      fill="url(#colorHalfDay)"
+                      name="Half Day"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="absent"
+                      stroke="#ef4444"
+                      strokeWidth={2}
+                      fill="url(#colorAbsent)"
+                      name="Absent"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-[400px] text-gray-500">
+                  No attendance data available for the last 7 days
+                </div>
+              )}
+
+              {/* Attendance Rate Summary */}
+              <div className="grid grid-cols-3 gap-4 mt-6 pt-4 border-t border-gray-100">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-emerald-600">
+                    {totalPresent}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">Total Present</p>
+                  {stats.activeNow > 0 && (
+                    <p className="text-xs text-emerald-600 mt-1">
+                      (+{stats.activeNow} working now)
+                    </p>
+                  )}
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-yellow-600">
+                    {totalHalfDay}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">Total Half Days</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-red-600">
+                    {totalAbsent}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">Total Absent</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column - Quick Actions */}
+          <div className="lg:w-80">
+            <div className="bg-white rounded-xl shadow-md p-5 sticky top-6">
+              <h3 className="text-base font-semibold text-gray-800 mb-4">
+                Quick Actions
+              </h3>
+              <div className="space-y-3">
+                {quickActions.map((action, index) => (
+                  <Link
+                    key={index}
+                    to={action.path}
+                    className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors group"
+                  >
+                    <div className="p-2.5 rounded-lg bg-gray-50 group-hover:bg-gray-100 transition-colors">
+                      <action.icon
+                        className="h-5 w-5"
+                        style={{ color: "#020c4c" }}
+                      />
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-base sm:text-lg font-bold mb-1" style={{ color: '#020c4c' }}>
+                      <p className="font-medium text-gray-800 text-sm">
                         {action.title}
-                      </h3>
-                      <p className="text-gray-600 text-xs sm:text-sm leading-relaxed">
+                      </p>
+                      <p className="text-xs text-gray-500">
                         {action.description}
                       </p>
-                      <div className="mt-2 sm:mt-3 text-xs sm:text-sm font-medium" style={{ color: '#7ec8f0' }}>
-                        Click to manage →
-                      </div>
                     </div>
-                  </div>
-                </div>
-              </Link>
-            ))}
+                  </Link>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>

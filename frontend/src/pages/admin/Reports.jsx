@@ -14,7 +14,7 @@ import autoTable from "jspdf-autotable";
 import axiosInstance from "../../utils/axiosConfig";
 import toast from "react-hot-toast";
 import ConfirmModal from "../../components/resuable/ConfirmModal";
-import logo from "../../assets/logo.png"
+import logo from "../../assets/logo.png";
 
 const Reports = () => {
   const [staff, setStaff] = useState([]);
@@ -25,7 +25,8 @@ const Reports = () => {
   const [expandedRecord, setExpandedRecord] = useState(null);
   const [showReportConfirm, setShowReportConfirm] = useState(false);
   const [pendingFormData, setPendingFormData] = useState(null);
-  const [hasTodayRecords, setHasTodayRecords] = useState(false);
+  const [, setHasTodayRecords] = useState(false);
+  const [, setActiveWorkingStaff] = useState([]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("monthly"); // 'monthly' or 'custom'
@@ -52,6 +53,22 @@ const Reports = () => {
     const interval = setInterval(checkDayCompletion, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    fetchActiveWorkingStaff();
+    const interval = setInterval(fetchActiveWorkingStaff, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchActiveWorkingStaff = async () => {
+    try {
+      const { data } = await axiosInstance.get("/admin/reports/live");
+      const active = data.records.filter((r) => r.isActive);
+      setActiveWorkingStaff(active);
+    } catch (error) {
+      console.error("Error fetching active staff:", error);
+    }
+  };
 
   const filteredAttendance = attendance.filter((record) => {
     if (!searchTerm) return true;
@@ -170,60 +187,60 @@ const Reports = () => {
     setShowReportConfirm(false);
   };
 
-const downloadPDF = () => {
-  try {
-    const doc = new jsPDF();
-    const monthName = new Date(
-      selectedYear,
-      selectedMonth - 1,
-    ).toLocaleString("default", { month: "long" });
+  const downloadPDF = () => {
+    try {
+      const doc = new jsPDF();
+      const monthName = new Date(
+        selectedYear,
+        selectedMonth - 1,
+      ).toLocaleString("default", { month: "long" });
 
-    const addLogoAndGenerate = () => {
-      // Create an image element and load the imported logo
-      const img = new Image();
-      img.crossOrigin = "Anonymous";
-      
-      img.onload = () => {
-        try {
-          const maxHeight = 20;
-          const maxWidth = 40;
-          const originalWidth = img.width;
-          const originalHeight = img.height;
-          let newWidth = maxHeight;
-          let newHeight = maxHeight;
+      const addLogoAndGenerate = () => {
+        // Create an image element and load the imported logo
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
 
-          if (originalWidth > originalHeight) {
-            newWidth = (originalWidth / originalHeight) * maxHeight;
-            if (newWidth > maxWidth) {
-              newWidth = maxWidth;
-              newHeight = (originalHeight / originalWidth) * maxWidth;
+        img.onload = () => {
+          try {
+            const maxHeight = 20;
+            const maxWidth = 40;
+            const originalWidth = img.width;
+            const originalHeight = img.height;
+            let newWidth = maxHeight;
+            let newHeight = maxHeight;
+
+            if (originalWidth > originalHeight) {
+              newWidth = (originalWidth / originalHeight) * maxHeight;
+              if (newWidth > maxWidth) {
+                newWidth = maxWidth;
+                newHeight = (originalHeight / originalWidth) * maxWidth;
+              }
+            } else {
+              newHeight = (originalHeight / originalWidth) * newWidth;
             }
-          } else {
-            newHeight = (originalHeight / originalWidth) * newWidth;
+            doc.addImage(img, "PNG", 14, 8, newWidth, newHeight);
+            generateReportContent(doc, monthName, true);
+          } catch (err) {
+            console.error("Logo error, generating without logo:", err);
+            generateReportContent(doc, monthName, false);
           }
-          doc.addImage(img, "PNG", 14, 8, newWidth, newHeight);
-          generateReportContent(doc, monthName, true);
-        } catch (err) {
-          console.error("Logo error, generating without logo:", err);
+        };
+
+        img.onerror = () => {
+          console.error("Logo not found, generating without logo");
           generateReportContent(doc, monthName, false);
-        }
+        };
+
+        // Use the imported logo
+        img.src = logo;
       };
 
-      img.onerror = () => {
-        console.error("Logo not found, generating without logo");
-        generateReportContent(doc, monthName, false);
-      };
-
-      // Use the imported logo
-      img.src = logo;
-    };
-
-    addLogoAndGenerate();
-  } catch (error) {
-    console.error("PDF Generation Error:", error);
-    toast.error("Failed to generate PDF");
-  }
-};
+      addLogoAndGenerate();
+    } catch (error) {
+      console.error("PDF Generation Error:", error);
+      toast.error("Failed to generate PDF");
+    }
+  };
   const generateReportContent = (doc, monthName, hasLogo) => {
     try {
       const startY = hasLogo ? 35 : 25;
@@ -262,6 +279,13 @@ const downloadPDF = () => {
       ];
       const tableRows = [];
 
+      // Helper to check if staff is currently working
+      const isCurrentlyWorking = (item) => {
+        const recordDate = new Date(item.date).toDateString();
+        const today = new Date().toDateString();
+        return recordDate === today && item.punchIn && !item.punchOut;
+      };
+
       filteredAttendance.forEach((item) => {
         const staffName =
           `${item.userId?.firstName || ""} ${item.userId?.lastName || ""}`.trim() ||
@@ -283,12 +307,21 @@ const downloadPDF = () => {
         const overtime = item.overtimeHours?.toFixed(2) || "0";
 
         let statusText;
-        if (item.status === "present") {
+        let statusType;
+        const workingNow = isCurrentlyWorking(item);
+
+        if (workingNow) {
+          statusText = "Working Now";
+          statusType = "working";
+        } else if (item.status === "present") {
           statusText = "Present";
+          statusType = "present";
         } else if (item.status === "half-day") {
           statusText = "Half Day";
+          statusType = "half-day";
         } else {
           statusText = "Absent";
+          statusType = "absent";
         }
 
         tableRows.push({
@@ -301,20 +334,28 @@ const downloadPDF = () => {
             overtime,
             statusText,
           ],
-          status: item.status,
+          status: statusType,
         });
       });
 
-      // Calculate summary
+      // Calculate summary - separate working now from present/absent
+      let workingNowCount = 0;
       let presentCount = 0;
       let halfDayCount = 0;
       let absentCount = 0;
       let totalHoursSum = 0;
 
       attendance.forEach((item) => {
-        if (item.status === "present") presentCount++;
-        else if (item.status === "half-day") halfDayCount++;
-        else absentCount++;
+        const workingNow = isCurrentlyWorking(item);
+        if (workingNow) {
+          workingNowCount++;
+        } else if (item.status === "present") {
+          presentCount++;
+        } else if (item.status === "half-day") {
+          halfDayCount++;
+        } else {
+          absentCount++;
+        }
         totalHoursSum += item.totalWorkedHours || 0;
       });
 
@@ -340,12 +381,17 @@ const downloadPDF = () => {
           fillColor: [248, 248, 248],
         },
         didParseCell: function (data) {
-          // Only color the row if it's a data row (not header) and status is absent
           if (data.section === "body" && data.row.index >= 0) {
             const rowStatus = tableRows[data.row.index]?.status;
 
-            // Make entire row light red for absent records
-            if (rowStatus === "absent") {
+            // Green background for working now rows
+            if (rowStatus === "working") {
+              data.cell.styles.fillColor = [220, 252, 231]; // Light green
+              data.cell.styles.textColor = [22, 101, 52]; // Dark green
+              data.cell.styles.fontStyle = "bold";
+            }
+            // Light red for absent records
+            else if (rowStatus === "absent") {
               data.cell.styles.fillColor = [255, 200, 200];
               data.cell.styles.textColor = [139, 0, 0];
             }
@@ -377,11 +423,13 @@ const downloadPDF = () => {
       doc.setFontSize(8);
       doc.setTextColor(100, 100, 100);
 
-      doc.text(
-        `Summary: ${presentCount} Present, ${halfDayCount} Half Day, ${absentCount} Absent`,
-        14,
-        finalY + 8,
-      );
+      // Update summary text to include working now count
+      let summaryText = `Summary: `;
+      if (workingNowCount > 0) {
+        summaryText += `${workingNowCount} Working Now, `;
+      }
+      summaryText += `${presentCount} Present, ${halfDayCount} Half Day, ${absentCount} Absent`;
+      doc.text(summaryText, 14, finalY + 8);
       doc.text(
         `Total Hours Worked: ${totalHoursSum.toFixed(2)} hrs`,
         14,
@@ -416,6 +464,23 @@ const downloadPDF = () => {
     }
   };
 
+  const isStaffCurrentlyWorking = (record) => {
+    // Check if the record has a punchIn and no punchOut for today
+    const hasPunchIn = record.punchIn !== null && record.punchIn !== undefined;
+    const hasPunchOut =
+      record.punchOut !== null && record.punchOut !== undefined;
+
+    // For today's date only
+    const recordDate = new Date(record.date).toDateString();
+    const today = new Date().toDateString();
+
+    // If it's today's record, not punched out yet, and has punch in
+    if (recordDate === today && hasPunchIn && !hasPunchOut) {
+      return true;
+    }
+    return false;
+  };
+
   const toggleRecordExpand = (index) => {
     setExpandedRecord(expandedRecord === index ? null : index);
   };
@@ -423,6 +488,34 @@ const downloadPDF = () => {
   const monthNames = Array.from({ length: 12 }, (_, i) =>
     new Date(2024, i).toLocaleString("default", { month: "long" }),
   );
+
+  const getLiveStatusCounts = () => {
+    const today = new Date().toDateString();
+
+    let workingNow = 0;
+    let present = 0;
+    let halfDay = 0;
+    let absent = 0;
+    let totalHours = 0;
+
+    attendance.forEach((record) => {
+      const recordDate = new Date(record.date).toDateString();
+      const isToday = recordDate === today;
+      const isWorkingNow = isToday && record.punchIn && !record.punchOut;
+
+      if (isWorkingNow) {
+        workingNow++;
+      } else {
+        if (record.status === "present") present++;
+        else if (record.status === "half-day") halfDay++;
+        else if (record.status === "absent") absent++;
+      }
+
+      totalHours += record.totalWorkedHours || 0;
+    });
+
+    return { workingNow, present, halfDay, absent, totalHours };
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -474,19 +567,6 @@ const downloadPDF = () => {
             )}
           </div>
         </div>
-
-        {/* Only show warning for incomplete today's data - More subtle */}
-        {hasTodayRecords && !dayComplete && (
-          <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center space-x-2">
-              <ClockIcon className="h-4 w-4 text-blue-600 flex-shrink-0" />
-              <p className="text-xs text-blue-700">
-                Today's data is in progress. Records will update automatically
-                when staff punch out.
-              </p>
-            </div>
-          </div>
-        )}
 
         {/* Filter Type Toggle - Responsive */}
         <div className="flex space-x-2 mb-4">
@@ -673,9 +753,22 @@ const downloadPDF = () => {
             {/* Summary Header */}
             <div className="p-3 sm:p-4 bg-gradient-to-r from-gray-50 to-white border-b border-gray-200">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                <p className="text-xs sm:text-sm text-gray-600 font-medium">
-                  Total Records: {attendance.length}
-                </p>
+                <div className="flex items-center gap-3">
+                  <p className="text-xs sm:text-sm text-gray-600 font-medium">
+                    Total Records: {attendance.length}
+                  </p>
+                  {getLiveStatusCounts().workingNow > 0 && (
+                    <div className="flex items-center space-x-1 px-2 py-1 bg-green-50 rounded-full">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                      </span>
+                      <span className="text-xs text-green-600">
+                        {getLiveStatusCounts().workingNow} working now
+                      </span>
+                    </div>
+                  )}
+                </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="flex items-center space-x-2">
                     <span className="text-xs text-gray-500">Total Hours:</span>
@@ -683,13 +776,7 @@ const downloadPDF = () => {
                       className="text-sm font-semibold"
                       style={{ color: "#020c4c" }}
                     >
-                      {attendance
-                        .reduce(
-                          (sum, record) => sum + (record.totalWorkedHours || 0),
-                          0,
-                        )
-                        .toFixed(2)}{" "}
-                      hrs
+                      {getLiveStatusCounts().totalHours.toFixed(2)} hrs
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -793,15 +880,27 @@ const downloadPDF = () => {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(record.status)}`}
-                        >
-                          {record.status === "present"
-                            ? "Present"
-                            : record.status === "half-day"
-                              ? "Half Day"
-                              : "Absent"}
-                        </span>
+                        {isStaffCurrentlyWorking(record) ? (
+                          <div className="flex items-center space-x-2">
+                            <span className="relative flex h-3 w-3">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                            </span>
+                            <span className="text-sm font-medium text-green-600">
+                              Working Now
+                            </span>
+                          </div>
+                        ) : (
+                          <span
+                            className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(record.status)}`}
+                          >
+                            {record.status === "present"
+                              ? "Present"
+                              : record.status === "half-day"
+                                ? "Half Day"
+                                : "Absent"}
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -833,15 +932,28 @@ const downloadPDF = () => {
                         </p>
                       </div>
                     </div>
-                    <span
-                      className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadge(record.status)}`}
-                    >
-                      {record.status === "present"
-                        ? "Present"
-                        : record.status === "half-day"
-                          ? "Half Day"
-                          : "Absent"}
-                    </span>
+                    {/* Status badge in mobile view */}
+                    {isStaffCurrentlyWorking(record) ? (
+                      <div className="flex items-center space-x-2">
+                        <span className="relative flex h-2.5 w-2.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                        </span>
+                        <span className="text-xs font-medium text-green-600">
+                          Working Now
+                        </span>
+                      </div>
+                    ) : (
+                      <span
+                        className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadge(record.status)}`}
+                      >
+                        {record.status === "present"
+                          ? "Present"
+                          : record.status === "half-day"
+                            ? "Half Day"
+                            : "Absent"}
+                      </span>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 mt-3">
@@ -905,32 +1017,37 @@ const downloadPDF = () => {
 
             {/* Summary Footer */}
             <div className="p-3 sm:p-4 bg-gray-50 border-t border-gray-200">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
+                <div className="bg-white rounded-lg p-2">
+                  <p className="text-xs text-gray-500">Working Now</p>
+                  <div className="flex items-center justify-center space-x-1">
+                    <p className="text-lg font-bold text-green-600">
+                      {getLiveStatusCounts().workingNow}
+                    </p>
+                  </div>
+                </div>
                 <div className="bg-white rounded-lg p-2">
                   <p className="text-xs text-gray-500">Present</p>
                   <p className="text-lg font-bold text-green-600">
-                    {attendance.filter((r) => r.status === "present").length}
+                    {getLiveStatusCounts().present}
                   </p>
                 </div>
                 <div className="bg-white rounded-lg p-2">
                   <p className="text-xs text-gray-500">Half Day</p>
                   <p className="text-lg font-bold text-yellow-600">
-                    {attendance.filter((r) => r.status === "half-day").length}
+                    {getLiveStatusCounts().halfDay}
                   </p>
                 </div>
                 <div className="bg-white rounded-lg p-2">
                   <p className="text-xs text-gray-500">Absent</p>
                   <p className="text-lg font-bold text-red-600">
-                    {attendance.filter((r) => r.status === "absent").length}
+                    {getLiveStatusCounts().absent}
                   </p>
                 </div>
                 <div className="bg-white rounded-lg p-2">
                   <p className="text-xs text-gray-500">Total Hours</p>
                   <p className="text-lg font-bold" style={{ color: "#020c4c" }}>
-                    {attendance
-                      .reduce((sum, r) => sum + (r.totalWorkedHours || 0), 0)
-                      .toFixed(1)}
-                    h
+                    {getLiveStatusCounts().totalHours.toFixed(1)}h
                   </p>
                 </div>
               </div>
@@ -968,7 +1085,7 @@ const downloadPDF = () => {
         onClose={handleCancelReport}
         onConfirm={handleConfirmReport}
         title="Generate Report"
-        message="Today's attendance is still in progress. Some records may be incomplete.\n\nDo you want to continue?"
+        message="Today's attendance is still in progress. Some records may be incomplete. Do you want to continue?"
       />
     </div>
   );

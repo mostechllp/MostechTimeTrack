@@ -476,8 +476,8 @@ const cleanupOldRejectedLeaves = async (req, res) => {
 // @route   GET /api/admin/dashboard/stats
 const getDashboardStats = async (req, res) => {
   try {
-    // Get total staff count
-    const totalStaff = await User.countDocuments({ role: "staff", isActive: true });
+    // Get total staff count (active only)
+    const totalStaff = await User.countDocuments({ role: 'staff', isActive: true });
 
     // Get today's date range
     const today = new Date();
@@ -485,66 +485,64 @@ const getDashboardStats = async (req, res) => {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Get present today count (staff who have status 'present' today)
-    const presentToday = await Attendance.countDocuments({
+    // Get all today's attendance records
+    const todayAttendance = await Attendance.find({
       date: {
         $gte: today,
         $lt: tomorrow,
       },
-      status: "present", // Only count 'present' status, not half-day
     });
 
-    // Get half-day today count
-    const halfDayToday = await Attendance.countDocuments({
-      date: {
-        $gte: today,
-        $lt: tomorrow,
-      },
-      status: "half-day",
-    });
+    // Count punched in today (anyone who has punchIn today)
+    const punchedInToday = todayAttendance.filter(record => record.punchIn).length;
+    
+    // Count currently working (punched in but not punched out)
+    const currentlyWorking = todayAttendance.filter(record => 
+      record.punchIn && !record.punchOut
+    ).length;
 
     // Get pending leave requests count
-    const pendingLeaves = await Leave.countDocuments({ status: "pending" });
+    const pendingLeaves = await Leave.countDocuments({ status: 'pending' });
 
     // Get recent activity (last 5 attendance records)
     const recentActivity = await Attendance.find()
-      .populate("userId", "firstName lastName email")
+      .populate('userId', 'firstName lastName email')
       .sort({ date: -1 })
       .limit(5)
-      .select("userId date status totalWorkedHours");
+      .select('userId date status totalWorkedHours punchIn punchOut');
 
     // Get leave requests summary
     const leaveSummary = await Leave.aggregate([
       {
         $group: {
-          _id: "$status",
-          count: { $sum: 1 },
-        },
-      },
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
     ]);
 
     // Format leave summary
     const leaveStats = {
       pending: 0,
       approved: 0,
-      rejected: 0,
+      rejected: 0
     };
 
-    leaveSummary.forEach((item) => {
+    leaveSummary.forEach(item => {
       leaveStats[item._id] = item.count;
     });
 
     res.json({
       totalStaff,
-      presentToday,
-      halfDayToday,
+      presentToday: punchedInToday,
+      activeNow: currentlyWorking,
       pendingLeaves,
       leaveStats,
-      recentActivity,
+      recentActivity
     });
   } catch (error) {
-    console.error("Error getting dashboard stats:", error);
-    res.status(500).json({ message: "Server error" });
+    console.error('Error getting dashboard stats:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -552,59 +550,90 @@ const getDashboardStats = async (req, res) => {
 // @route   GET /api/admin/dashboard/attendance-summary
 const getAttendanceSummary = async (req, res) => {
   try {
-    const { days = 7 } = req.query; // Default to last 7 days
-
+    const { days = 7 } = req.query;
+    
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
-
-    const attendance = await Attendance.aggregate([
-      {
-        $match: {
-          date: {
-            $gte: startDate,
-            $lte: endDate,
-          },
-        },
-      },
-      {
-        $group: {
-          _id: {
-            date: { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
-            status: "$status",
-          },
-          count: { $sum: 1 },
-        },
-      },
-      {
-        $sort: { "_id.date": 1 },
-      },
-    ]);
-
-    // Format for chart
-    const dates = [...new Set(attendance.map((a) => a._id.date))].sort();
-
-    const summary = dates.map((date) => {
-      const dayData = {
-        date,
-        present: 0,
-        absent: 0,
-        "half-day": 0,
-      };
-
-      attendance
-        .filter((a) => a._id.date === date)
-        .forEach((a) => {
-          dayData[a._id.status] = a.count;
-        });
-
-      return dayData;
+    
+    // Get all attendance records for the period
+    const attendance = await Attendance.find({
+      date: {
+        $gte: startDate,
+        $lte: endDate
+      }
     });
-
-    res.json(summary);
+    
+    // Get today's date for live adjustment
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    // Get today's active working records
+    const todayRecords = await Attendance.find({
+      date: {
+        $gte: today,
+        $lt: tomorrow
+      }
+    });
+    
+    const currentlyWorking = todayRecords.filter(r => r.punchIn && !r.punchOut).length;
+    
+    // Group by date
+    const summary = [];
+    const dateMap = new Map();
+    
+    attendance.forEach(record => {
+      const dateStr = record.date.toISOString().split('T')[0];
+      const isToday = dateStr === today.toISOString().split('T')[0];
+      
+      let status = record.status;
+      // If it's today and still working, count as working
+      if (isToday && record.punchIn && !record.punchOut) {
+        status = 'working';
+      }
+      
+      if (!dateMap.has(dateStr)) {
+        dateMap.set(dateStr, {
+          date: dateStr,
+          present: 0,
+          absent: 0,
+          'half-day': 0,
+          working: 0
+        });
+      }
+      
+      const dayData = dateMap.get(dateStr);
+      if (status === 'present') dayData.present++;
+      else if (status === 'half-day') dayData['half-day']++;
+      else if (status === 'absent') dayData.absent++;
+      else if (status === 'working') dayData.working++;
+    });
+    
+    // Convert to array and sort by date
+    dateMap.forEach((value, key) => {
+      summary.push(value);
+    });
+    summary.sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    // Format for chart
+    const formattedSummary = summary.map(item => ({
+      date: new Date(item.date).toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric'
+      }),
+      present: item.present + item.working, // Add working staff to present for chart
+      absent: item.absent,
+      'half-day': item['half-day'],
+      working: item.working
+    }));
+    
+    res.json(formattedSummary);
   } catch (error) {
-    console.error("Error getting attendance summary:", error);
-    res.status(500).json({ message: "Server error" });
+    console.error('Error getting attendance summary:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -634,17 +663,23 @@ const getLiveAttendance = async (req, res) => {
       // Check if currently punched in and not punched out
       const isActive = record.punchIn && !record.punchOut;
       
+      // Determine display status
+      let displayStatus = record.status;
+      if (isActive) {
+        displayStatus = "working";
+      }
+      
       return {
         ...recordObj,
         isActive: isActive,
-        activeSession: null // No morning/afternoon distinction anymore
+        displayStatus: displayStatus,
       };
     });
 
     res.json({
       date: today.toLocaleDateString(),
       records: liveData,
-      isComplete: isDayCompleteCheck(now, now.getDay(), now.getHours())
+      isComplete: isDayCompleteCheck(now, now.getDay(), now.getHours()),
     });
   } catch (error) {
     console.error("Error in getLiveAttendance:", error);
