@@ -8,12 +8,12 @@ dotenv.config();
 const createAdmin = async () => {
   try {
     // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI);
+    await mongoose.connect('mongodb+srv://mos-time-tracker:LKIHkdJ8wqaHBXYJ@mos-time-tracker.5x0tevd.mongodb.net/?appName=mos-time-tracker');
     console.log('Connected to MongoDB');
 
     // Admin details
     const adminData = {
-      email: 'hr@mostech.com',
+      email: 'hr@mostech.ae',
       password: 'MoS@2026#', 
       firstName: 'Mostech',
       lastName: 'Solutions',

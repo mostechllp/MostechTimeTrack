@@ -630,28 +630,21 @@ const getLiveAttendance = async (req, res) => {
     const now = new Date();
     const liveData = attendance.map((record) => {
       const recordObj = record.toObject();
-
-      // Calculate if still in session
-      const morningActive =
-        record.morningSession?.punchIn && !record.morningSession?.punchOut;
-      const afternoonActive =
-        record.afternoonSession?.punchIn && !record.afternoonSession?.punchOut;
-
+      
+      // Check if currently punched in and not punched out
+      const isActive = record.punchIn && !record.punchOut;
+      
       return {
         ...recordObj,
-        isActive: morningActive || afternoonActive,
-        activeSession: morningActive
-          ? "morning"
-          : afternoonActive
-            ? "afternoon"
-            : null,
+        isActive: isActive,
+        activeSession: null // No morning/afternoon distinction anymore
       };
     });
 
     res.json({
       date: today.toLocaleDateString(),
       records: liveData,
-      isComplete: isDayCompleteCheck(now, now.getDay(), now.getHours()),
+      isComplete: isDayCompleteCheck(now, now.getDay(), now.getHours())
     });
   } catch (error) {
     console.error("Error in getLiveAttendance:", error);
@@ -864,6 +857,7 @@ const getCustomDateReport = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
 
 module.exports = {
   createStaff,

@@ -20,7 +20,7 @@ import ConfirmModal from "../../components/resuable/ConfirmModal";
 
 const StaffManagement = () => {
   const [staff, setStaff] = useState([]);
-  const [activeTab, setActiveTab] = useState("active"); // 'active' or 'inactive'
+  const [activeTab, setActiveTab] = useState("active");
   const [showAddForm, setShowAddForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -29,6 +29,7 @@ const StaffManagement = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
+  const [activeStaffToday, setActiveStaffToday] = useState([]);
 
   const {
     register,
@@ -47,6 +48,10 @@ const StaffManagement = () => {
 
   useEffect(() => {
     fetchStaff();
+    fetchActiveStaff();
+    // Refresh active staff every 30 seconds
+    const interval = setInterval(fetchActiveStaff, 30000);
+    return () => clearInterval(interval);
   }, [activeTab]);
 
   const fetchStaff = async () => {
@@ -59,6 +64,20 @@ const StaffManagement = () => {
       console.error("Error fetching staff:", error);
       toast.error("Failed to fetch staff");
     }
+  };
+
+  const fetchActiveStaff = async () => {
+    try {
+      const { data } = await axiosInstance.get("/admin/reports/live");
+      const active = data.records.filter((r) => r.isActive);
+      setActiveStaffToday(active.map((r) => r.userId?._id));
+    } catch (error) {
+      console.error("Error fetching active staff:", error);
+    }
+  };
+
+  const isStaffActiveNow = (staffId) => {
+    return activeStaffToday.includes(staffId);
   };
 
   const getFilteredStaff = () => {
@@ -496,15 +515,12 @@ const StaffManagement = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                     Actions
                   </th>
-                </tr>
+                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredStaff.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan="5"
-                      className="px-6 py-12 text-center text-gray-500"
-                    >
+                    <td colSpan="5" className="px-6 py-12 text-center text-gray-500">
                       <div className="flex flex-col items-center">
                         <UserIcon className="h-12 w-12 text-gray-300 mb-2" />
                         <p className="text-sm">
@@ -516,75 +532,97 @@ const StaffManagement = () => {
                     </td>
                   </tr>
                 ) : (
-                  filteredStaff.map((member) => (
-                    <tr
-                      key={member._id}
-                      className={`hover:bg-gray-50 ${member.isActive === false ? "bg-gray-50" : ""}`}
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                            <span className="text-blue-600 font-medium">
-                              {member.firstName?.charAt(0)}
-                              {member.lastName?.charAt(0)}
-                            </span>
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">
-                              {member.firstName} {member.lastName}
+                  filteredStaff.map((member) => {
+                    const isCurrentlyWorking = isStaffActiveNow(member._id);
+                    return (
+                      <tr
+                        key={member._id}
+                        className={`hover:bg-gray-50 ${member.isActive === false ? "bg-gray-50" : ""}`}
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center relative">
+                              <span className="text-blue-600 font-medium">
+                                {member.firstName?.charAt(0)}
+                                {member.lastName?.charAt(0)}
+                              </span>
+                              {isCurrentlyWorking && (
+                                <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                                </span>
+                              )}
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">
+                                {member.firstName} {member.lastName}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {member.email}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {new Date(
-                          member.joiningDate || member.createdAt,
-                        ).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {member.isActive === false ? (
-                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                            Inactive
-                          </span>
-                        ) : (
-                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                            Active
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        {member.isActive === false ? (
-                          <button
-                            onClick={() => handleRestore(member)}
-                            className="text-green-600 hover:text-green-900 flex items-center space-x-1"
-                          >
-                            <RefreshIcon className="h-5 w-5" />
-                            <span>Reactivate</span>
-                          </button>
-                        ) : (
-                          <div className="flex space-x-3">
-                            <button
-                              onClick={() => handleEdit(member)}
-                              className="text-blue-600 hover:text-blue-900"
-                              title="Edit"
-                            >
-                              <PencilIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(member)}
-                              className="text-red-600 hover:text-red-900"
-                              title="Deactivate"
-                            >
-                              <MinusCircleIcon className="h-5 w-5" />
-                            </button>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          {member.email}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          {new Date(
+                            member.joiningDate || member.createdAt,
+                          ).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center space-x-2">
+                            {member.isActive === false ? (
+                              <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                                Inactive
+                              </span>
+                            ) : (
+                              <>
+                                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                  Active
+                                </span>
+                                {isCurrentlyWorking && (
+                                  <span className="inline-flex items-center space-x-1 text-xs text-green-600">
+                                    <span className="relative flex h-2 w-2">
+                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                    </span>
+                                    <span>Working Now</span>
+                                  </span>
+                                )}
+                              </>
+                            )}
                           </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          {member.isActive === false ? (
+                            <button
+                              onClick={() => handleRestore(member)}
+                              className="text-green-600 hover:text-green-900 flex items-center space-x-1"
+                            >
+                              <RefreshIcon className="h-5 w-5" />
+                              <span>Reactivate</span>
+                            </button>
+                          ) : (
+                            <div className="flex space-x-3">
+                              <button
+                                onClick={() => handleEdit(member)}
+                                className="text-blue-600 hover:text-blue-900"
+                                title="Edit"
+                              >
+                                <PencilIcon className="h-5 w-5" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(member)}
+                                className="text-red-600 hover:text-red-900"
+                                title="Deactivate"
+                              >
+                                <MinusCircleIcon className="h-5 w-5" />
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -592,98 +630,120 @@ const StaffManagement = () => {
 
           {/* Mobile Card View */}
           <div className="md:hidden">
-            {filteredStaff.map((member) => (
-              <div
-                key={member._id}
-                className={`p-4 border-b border-gray-200 ${member.isActive === false ? "bg-gray-50" : ""}`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center flex-1">
-                    <div className="flex-shrink-0 h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                      <span className="text-blue-600 font-medium">
-                        {member.firstName?.charAt(0)}
-                        {member.lastName?.charAt(0)}
-                      </span>
-                    </div>
-                    <div className="ml-3 flex-1">
-                      <div className="text-base font-semibold text-gray-900">
-                        {member.firstName} {member.lastName}
+            {filteredStaff.map((member) => {
+              const isCurrentlyWorking = isStaffActiveNow(member._id);
+              return (
+                <div
+                  key={member._id}
+                  className={`p-4 border-b border-gray-200 ${member.isActive === false ? "bg-gray-50" : ""}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center flex-1">
+                      <div className="flex-shrink-0 h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center relative">
+                        <span className="text-blue-600 font-medium">
+                          {member.firstName?.charAt(0)}
+                          {member.lastName?.charAt(0)}
+                        </span>
+                        {isCurrentlyWorking && (
+                          <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                          </span>
+                        )}
                       </div>
-                      <div className="text-sm text-gray-500 mt-0.5">
-                        {member.email}
+                      <div className="ml-3 flex-1">
+                        <div className="text-base font-semibold text-gray-900">
+                          {member.firstName} {member.lastName}
+                        </div>
+                        <div className="text-sm text-gray-500 mt-0.5">
+                          {member.email}
+                        </div>
                       </div>
                     </div>
+                    <button
+                      onClick={() => toggleStaffExpand(member._id)}
+                      className="p-2 rounded-lg hover:bg-gray-100"
+                    >
+                      {expandedStaff === member._id ? (
+                        <ChevronUpIcon className="h-5 w-5 text-gray-500" />
+                      ) : (
+                        <ChevronDownIcon className="h-5 w-5 text-gray-500" />
+                      )}
+                    </button>
                   </div>
-                  <button
-                    onClick={() => toggleStaffExpand(member._id)}
-                    className="p-2 rounded-lg hover:bg-gray-100"
-                  >
-                    {expandedStaff === member._id ? (
-                      <ChevronUpIcon className="h-5 w-5 text-gray-500" />
-                    ) : (
-                      <ChevronDownIcon className="h-5 w-5 text-gray-500" />
-                    )}
-                  </button>
-                </div>
 
-                {expandedStaff === member._id && (
-                  <div className="mt-3 pt-3 border-t border-gray-100">
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-500">
-                          Joined Date:
-                        </span>
-                        <span className="text-sm font-medium text-gray-700">
-                          {new Date(
-                            member.joiningDate || member.createdAt,
-                          ).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-500">Status:</span>
-                        {member.isActive === false ? (
-                          <span className="px-2 text-xs font-semibold rounded-full bg-red-100 text-red-800">
-                            Inactive
+                  {expandedStaff === member._id && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-500">
+                            Joined Date:
                           </span>
-                        ) : (
-                          <span className="px-2 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                            Active
+                          <span className="text-sm font-medium text-gray-700">
+                            {new Date(
+                              member.joiningDate || member.createdAt,
+                            ).toLocaleDateString()}
                           </span>
-                        )}
-                      </div>
-                      <div className="flex justify-end space-x-3 pt-2">
-                        {member.isActive === false ? (
-                          <button
-                            onClick={() => handleRestore(member)}
-                            className="flex items-center space-x-1 px-3 py-1 text-sm text-green-600 hover:text-green-800"
-                          >
-                            <RefreshIcon className="h-4 w-4" />
-                            <span>Restore</span>
-                          </button>
-                        ) : (
-                          <>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-500">Status:</span>
+                          <div className="flex items-center space-x-2">
+                            {member.isActive === false ? (
+                              <span className="px-2 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                Inactive
+                              </span>
+                            ) : (
+                              <>
+                                <span className="px-2 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                  Active
+                                </span>
+                                {isCurrentlyWorking && (
+                                  <span className="inline-flex items-center space-x-1 text-xs text-green-600">
+                                    <span className="relative flex h-2 w-2">
+                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                                    </span>
+                                    <span>Working</span>
+                                  </span>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex justify-end space-x-3 pt-2">
+                          {member.isActive === false ? (
                             <button
-                              onClick={() => handleEdit(member)}
-                              className="flex items-center space-x-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-800"
+                              onClick={() => handleRestore(member)}
+                              className="flex items-center space-x-1 px-3 py-1 text-sm text-green-600 hover:text-green-800"
                             >
-                              <PencilIcon className="h-4 w-4" />
-                              <span>Edit</span>
+                              <RefreshIcon className="h-4 w-4" />
+                              <span>Restore</span>
                             </button>
-                            <button
-                              onClick={() => handleDelete(member)}
-                              className="flex items-center space-x-1 px-3 py-1 text-sm text-red-600 hover:text-red-800"
-                            >
-                              <TrashIcon className="h-4 w-4" />
-                              <span>Delete</span>
-                            </button>
-                          </>
-                        )}
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleEdit(member)}
+                                className="flex items-center space-x-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-800"
+                              >
+                                <PencilIcon className="h-4 w-4" />
+                                <span>Edit</span>
+                              </button>
+                              <button
+                                onClick={() => handleDelete(member)}
+                                className="flex items-center space-x-1 px-3 py-1 text-sm text-red-600 hover:text-red-800"
+                              >
+                                <TrashIcon className="h-4 w-4" />
+                                <span>Delete</span>
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -702,7 +762,7 @@ const StaffManagement = () => {
         isOpen={showRestoreConfirm}
         onClose={() => setShowRestoreConfirm(false)}
         onConfirm={confirmRestore}
-        title="Reactivate  Staff Member"
+        title="Reactivate Staff Member"
         message={`Are you sure you want to reactivate ${selectedStaff?.firstName} ${selectedStaff?.lastName}?`}
       />
     </div>
