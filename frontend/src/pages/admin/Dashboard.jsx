@@ -110,10 +110,7 @@ const AdminDashboard = () => {
       // Get currently working staff count
       const workingCount = liveRecords.filter(r => r.isActive).length;
       
-      // Get total staff count
-      const totalStaff = stats.totalStaff;
-
-      // Format data for charts with adjustment for currently working staff
+      // Format data for charts - DO NOT add working staff to present count
       const formattedData = rawData.map((item) => {
         const itemDate = new Date(item.date);
         const isToday = itemDate.toDateString() === today;
@@ -122,11 +119,10 @@ const AdminDashboard = () => {
         let halfDayCount = item["half-day"] || 0;
         let absentCount = item.absent || 0;
         
-        // If this is today's data, adjust counts for currently working staff
+        // If this is today's data, adjust counts
         if (isToday && workingCount > 0) {
-          // Currently working staff should be counted as present
-          presentCount = presentCount + workingCount;
-          // If the backend counted them as absent, subtract them
+          // Working staff are NOT present yet - they are separate
+          // Remove working staff from absent if they were counted there
           absentCount = Math.max(0, absentCount - workingCount);
         }
         
@@ -139,10 +135,8 @@ const AdminDashboard = () => {
           present: presentCount,
           absent: absentCount,
           "half-day": halfDayCount,
-          total: presentCount + absentCount + halfDayCount,
-          attendanceRate: totalStaff
-            ? (((presentCount + halfDayCount * 0.5) / totalStaff) * 100).toFixed(1)
-            : 0,
+          working: isToday ? workingCount : 0,
+          total: presentCount + absentCount + halfDayCount + (isToday ? workingCount : 0),
         };
       });
 
@@ -214,10 +208,11 @@ const AdminDashboard = () => {
     );
   }
 
-  // Calculate totals for display
+  // Calculate totals for display - separate working staff from present
   const totalPresent = attendanceData.reduce((sum, day) => sum + day.present, 0);
   const totalHalfDay = attendanceData.reduce((sum, day) => sum + day["half-day"], 0);
   const totalAbsent = attendanceData.reduce((sum, day) => sum + day.absent, 0);
+  const totalWorking = attendanceData.reduce((sum, day) => sum + (day.working || 0), 0);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -297,6 +292,10 @@ const AdminDashboard = () => {
                     <span className="text-gray-600">Present</span>
                   </div>
                   <div className="flex items-center gap-1">
+                    <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                    <span className="text-gray-600">Working Now</span>
+                  </div>
+                  <div className="flex items-center gap-1">
                     <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
                     <span className="text-gray-600">Half Day</span>
                   </div>
@@ -317,6 +316,10 @@ const AdminDashboard = () => {
                       <linearGradient id="colorPresent" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
                         <stop offset="95%" stopColor="#10b981" stopOpacity={0.1}/>
+                      </linearGradient>
+                      <linearGradient id="colorWorking" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1}/>
                       </linearGradient>
                       <linearGradient id="colorHalfDay" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.8}/>
@@ -361,6 +364,14 @@ const AdminDashboard = () => {
                     />
                     <Area
                       type="monotone"
+                      dataKey="working"
+                      stroke="#3b82f6"
+                      strokeWidth={2}
+                      fill="url(#colorWorking)"
+                      name="Working Now"
+                    />
+                    <Area
+                      type="monotone"
                       dataKey="half-day"
                       stroke="#f59e0b"
                       strokeWidth={2}
@@ -384,29 +395,30 @@ const AdminDashboard = () => {
               )}
 
               {/* Attendance Rate Summary */}
-              <div className="grid grid-cols-3 gap-4 mt-6 pt-4 border-t border-gray-100">
+              <div className="grid grid-cols-4 gap-3 mt-6 pt-4 border-t border-gray-100">
                 <div className="text-center">
                   <p className="text-2xl font-bold text-emerald-600">
                     {totalPresent}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">Total Present</p>
-                  {stats.activeNow > 0 && (
-                    <p className="text-xs text-emerald-600 mt-1">
-                      (+{stats.activeNow} working now)
-                    </p>
-                  )}
+                  <p className="text-xs text-gray-500 mt-1">Present</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-blue-600">
+                    {totalWorking}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">Working Now</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-yellow-600">
                     {totalHalfDay}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">Total Half Days</p>
+                  <p className="text-xs text-gray-500 mt-1">Half Day</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-red-600">
                     {totalAbsent}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">Total Absent</p>
+                  <p className="text-xs text-gray-500 mt-1">Absent</p>
                 </div>
               </div>
             </div>

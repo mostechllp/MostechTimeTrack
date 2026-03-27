@@ -589,7 +589,7 @@ const getAttendanceSummary = async (req, res) => {
       const isToday = dateStr === today.toISOString().split('T')[0];
       
       let status = record.status;
-      // If it's today and still working, count as working
+      // If it's today and still working, count as working (NOT present)
       if (isToday && record.punchIn && !record.punchOut) {
         status = 'working';
       }
@@ -617,17 +617,17 @@ const getAttendanceSummary = async (req, res) => {
     });
     summary.sort((a, b) => new Date(a.date) - new Date(b.date));
     
-    // Format for chart
+    // Format for chart - DO NOT add working to present
     const formattedSummary = summary.map(item => ({
       date: new Date(item.date).toLocaleDateString('en-US', {
         weekday: 'short',
         month: 'short',
         day: 'numeric'
       }),
-      present: item.present + item.working, // Add working staff to present for chart
+      present: item.present,        
       absent: item.absent,
       'half-day': item['half-day'],
-      working: item.working
+      working: item.working         
     }));
     
     res.json(formattedSummary);
