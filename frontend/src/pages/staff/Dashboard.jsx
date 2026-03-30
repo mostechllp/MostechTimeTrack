@@ -10,6 +10,7 @@ import {
 import axiosInstance from "../../utils/axiosConfig";
 import ConfirmModal from "../../components/resuable/ConfirmModal";
 import ReportModal from "../../components/resuable/ReportModal";
+import TaskManager from "../../components/TaskManager";
 
 const StaffDashboard = () => {
   const { user } = useAuth();
@@ -522,6 +523,8 @@ const StaffDashboard = () => {
           </div>
         )}
       </div>
+
+      <TaskManager/>
 
       <ConfirmModal
         isOpen={showPunchInConfirm}
