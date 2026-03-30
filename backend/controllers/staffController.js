@@ -86,6 +86,7 @@ const punchOut = async (req, res) => {
     const now = new Date();
     const startOfDay = new Date(now);
     startOfDay.setHours(0, 0, 0, 0);
+    const day = now.getDay(); // 0 = Sunday, 6 = Saturday
 
     const attendance = await Attendance.findOne({
       userId: req.user._id,
@@ -117,22 +118,44 @@ const punchOut = async (req, res) => {
     const totalWorkedHours = totalWorkedMs / (1000 * 60 * 60);
     attendance.totalWorkedHours = parseFloat(totalWorkedHours.toFixed(2));
 
-    // Calculate overtime (more than 9 hours)
-    if (totalWorkedHours > 9) {
-      attendance.overtimeHours = parseFloat((totalWorkedHours - 9).toFixed(2));
+    // Calculate overtime based on day
+    if (day === 6) {
+      // Saturday: 4 hours is full day, anything above is overtime
+      if (totalWorkedHours > 4) {
+        attendance.overtimeHours = parseFloat((totalWorkedHours - 4).toFixed(2));
+      } else {
+        attendance.overtimeHours = 0;
+      }
     } else {
-      attendance.overtimeHours = 0;
+      // Sunday & Weekdays: 9 hours is full day
+      if (totalWorkedHours > 9) {
+        attendance.overtimeHours = parseFloat((totalWorkedHours - 9).toFixed(2));
+      } else {
+        attendance.overtimeHours = 0;
+      }
     }
 
-    // Determine final status based on worked hours
-    if (totalWorkedHours >= 9) {
-      attendance.status = "present";
-    } else if (totalWorkedHours >= 4) {
-      attendance.status = "half-day";
-    } else if (totalWorkedHours > 0) {
-      attendance.status = "absent"; // Worked less than 4 hours
+    // Determine status based on day and worked hours
+    if (day === 6) {
+      // Saturday: 4 hours = present, less than 4 = half-day
+      if (totalWorkedHours >= 4) {
+        attendance.status = "present";
+      } else if (totalWorkedHours > 0) {
+        attendance.status = "half-day";
+      } else {
+        attendance.status = "absent";
+      }
     } else {
-      attendance.status = "absent";
+      // Sunday & Weekdays: 9 hours = present, 4-9 = half-day
+      if (totalWorkedHours >= 9) {
+        attendance.status = "present";
+      } else if (totalWorkedHours >= 4) {
+        attendance.status = "half-day";
+      } else if (totalWorkedHours > 0) {
+        attendance.status = "half-day";
+      } else {
+        attendance.status = "absent";
+      }
     }
 
     await attendance.save();

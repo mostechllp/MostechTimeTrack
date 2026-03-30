@@ -187,6 +187,19 @@ const Reports = () => {
     setShowReportConfirm(false);
   };
 
+  const getDateWithDayType = (dateString) => {
+    const date = new Date(dateString);
+    const day = date.getDay();
+    const formattedDate = date.toLocaleDateString();
+
+    if (day === 0) {
+      return `${formattedDate} (Sunday)`;
+    } else if (day === 6) {
+      return `${formattedDate} (Saturday)`;
+    }
+    return formattedDate;
+  };
+
   const downloadPDF = () => {
     try {
       const doc = new jsPDF();
@@ -290,7 +303,7 @@ const Reports = () => {
         const staffName =
           `${item.userId?.firstName || ""} ${item.userId?.lastName || ""}`.trim() ||
           "Unknown";
-        const date = new Date(item.date).toLocaleDateString();
+        const date = getDateWithDayType(item.date);
         const punchIn = item.punchIn
           ? new Date(item.punchIn).toLocaleTimeString([], {
               hour: "2-digit",
@@ -846,7 +859,7 @@ const Reports = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {new Date(record.date).toLocaleDateString()}
+                        {getDateWithDayType(record.date)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-mono">
                         {record.punchIn
@@ -928,7 +941,7 @@ const Reports = () => {
                           {record.userId?.firstName} {record.userId?.lastName}
                         </p>
                         <p className="text-xs text-gray-500 mt-0.5">
-                          {new Date(record.date).toLocaleDateString()}
+                          {getDateWithDayType(record.date)}
                         </p>
                       </div>
                     </div>
