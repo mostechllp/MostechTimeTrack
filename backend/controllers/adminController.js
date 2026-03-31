@@ -53,7 +53,7 @@ const createStaff = async (req, res) => {
           <p><strong>Email:</strong> ${user.email}</p>
           <p><strong>Temporary Password:</strong> ${tempPassword}</p>
           <p><strong>Joining Date:</strong> ${user.joiningDate.toLocaleDateString()}</p>
-          <p>Please login and change your password immediately.</p>
+          <p>Please login <a href="https://mostech.ae/time-tracker/">here</a> and change your password immediately.</p>
         `,
       });
 
