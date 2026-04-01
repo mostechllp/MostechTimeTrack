@@ -17,26 +17,27 @@ import ConfirmModal from "../../components/resuable/ConfirmModal";
 
 // List of holidays for 2026
 const HOLIDAYS_2026 = [
-  new Date(2026, 0, 1),  // New Year's Day
+  new Date(2026, 0, 1), // New Year's Day
   new Date(2026, 0, 26), // Republic Day
   new Date(2026, 2, 20), // Id-ul-Fitr (Ramzan)
-  new Date(2026, 3, 3),  // Good Friday
+  new Date(2026, 3, 3), // Good Friday
   new Date(2026, 3, 15), // Vishu
-  new Date(2026, 4, 1),  // May Day
+  new Date(2026, 4, 1), // May Day
   new Date(2026, 4, 27), // Id-ul-Ad'ha (Bakrid)
   new Date(2026, 7, 15), // Independence Day
   new Date(2026, 7, 25), // Milad-i-Sherif
   new Date(2026, 7, 26), // Thiruvonam
-  new Date(2026, 9, 2),  // Gandhi Jayanthi
+  new Date(2026, 9, 2), // Gandhi Jayanthi
   new Date(2026, 11, 25), // Christmas
 ];
 
 // Function to check if a date is a holiday
 const isHoliday = (date) => {
-  return HOLIDAYS_2026.some(holiday => 
-    holiday.getFullYear() === date.getFullYear() &&
-    holiday.getMonth() === date.getMonth() &&
-    holiday.getDate() === date.getDate()
+  return HOLIDAYS_2026.some(
+    (holiday) =>
+      holiday.getFullYear() === date.getFullYear() &&
+      holiday.getMonth() === date.getMonth() &&
+      holiday.getDate() === date.getDate(),
   );
 };
 
@@ -48,39 +49,39 @@ const isSunday = (date) => {
 // Function to calculate working days between two dates
 const calculateWorkingDays = (startDate, endDate, leaveType) => {
   if (!startDate) return 0;
-  
-  if (leaveType === 'half-day') {
+
+  if (leaveType === "half-day") {
     return 0.5; // Half day = 0.5 days
   }
-  
+
   if (!endDate) return 0;
-  
+
   const start = new Date(startDate);
   const end = new Date(endDate);
-  
+
   if (start > end) return 0;
-  
+
   let workingDays = 0;
   let currentDate = new Date(start);
-  
+
   while (currentDate <= end) {
     if (!isSunday(currentDate) && !isHoliday(currentDate)) {
       workingDays++;
     }
     currentDate.setDate(currentDate.getDate() + 1);
   }
-  
+
   return workingDays;
 };
 
 // Function to format date for display
 const formatDateForDisplay = (dateString) => {
-  if (!dateString) return '';
+  if (!dateString) return "";
   const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', { 
-    weekday: 'short', 
-    month: 'short', 
-    day: 'numeric' 
+  return date.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
   });
 };
 
@@ -94,8 +95,8 @@ const LeaveRequest = () => {
     watch,
   } = useForm({
     defaultValues: {
-      leaveType: 'full-day'
-    }
+      leaveType: "full-day",
+    },
   });
   const [leaves, setLeaves] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -103,40 +104,49 @@ const LeaveRequest = () => {
   const [uploading, setUploading] = useState(false);
   const [leaveId, setLeaveId] = useState("");
   const [copied, setCopied] = useState(false);
-  const [showLeaveRequestDeleteConfirm, setShowLeaveRequestDeleteConfirm] = useState(false);
+  const [showLeaveRequestDeleteConfirm, setShowLeaveRequestDeleteConfirm] =
+    useState(false);
   const [selectedLeaveId, setSelectedLeaveId] = useState(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  
+
   // Watch form values
   const startDate = watch("startDate");
   const endDate = watch("endDate");
   const leaveType = watch("leaveType");
   const halfDayTime = watch("halfDayTime");
-  
+
   // Calculate working days
   const [workingDays, setWorkingDays] = useState(0);
-  const [excludedDates, setExcludedDates] = useState({ sundays: 0, holidays: 0 });
+  const [excludedDates, setExcludedDates] = useState({
+    sundays: 0,
+    holidays: 0,
+  });
 
   // Update working days when dates change
   useEffect(() => {
     if (startDate) {
-      const days = calculateWorkingDays(startDate, endDate, leaveType, halfDayTime);
+      const days = calculateWorkingDays(
+        startDate,
+        endDate,
+        leaveType,
+        halfDayTime,
+      );
       setWorkingDays(days);
-      
-      if (leaveType === 'full-day' && startDate && endDate) {
+
+      if (leaveType === "full-day" && startDate && endDate) {
         const start = new Date(startDate);
         const end = new Date(endDate);
-        
+
         let sundayCount = 0;
         let holidayCount = 0;
         let currentDate = new Date(start);
-        
+
         while (currentDate <= end) {
           if (isSunday(currentDate)) sundayCount++;
           if (isHoliday(currentDate)) holidayCount++;
           currentDate.setDate(currentDate.getDate() + 1);
         }
-        
+
         setExcludedDates({ sundays: sundayCount, holidays: holidayCount });
       } else {
         setExcludedDates({ sundays: 0, holidays: 0 });
@@ -225,8 +235,8 @@ const LeaveRequest = () => {
     formData.append("leaveId", leaveId);
     formData.append("leaveDays", workingDays);
     formData.append("emailScreenshot", selectedFile);
-    
-    if (data.leaveType === 'full-day') {
+
+    if (data.leaveType === "full-day") {
       formData.append("endDate", data.endDate);
     } else {
       formData.append("halfDayTime", data.halfDayTime);
@@ -243,7 +253,7 @@ const LeaveRequest = () => {
         response.data.message || "Leave request submitted successfully",
       );
       reset({
-        leaveType: 'full-day'
+        leaveType: "full-day",
       });
       removeSelectedFile();
       generateUniqueId();
@@ -289,10 +299,10 @@ const LeaveRequest = () => {
   };
 
   const getLeaveTypeDisplay = (leave) => {
-    if (leave.leaveType === 'half-day') {
-      return `${leave.halfDayTime === 'morning' ? '☀️ Morning' : '🌙 Afternoon'} Half Day`;
+    if (leave.leaveType === "half-day") {
+      return `${leave.halfDayTime === "morning" ? "☀️ Morning" : "🌙 Afternoon"} Half Day`;
     }
-    return '📅 Full Day';
+    return "📅 Full Day";
   };
 
   return (
@@ -419,8 +429,8 @@ const LeaveRequest = () => {
                     <CalendarIcon className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" />
                     <input
                       type="date"
-                      {...register("startDate", { 
-                        required: "Date is required" 
+                      {...register("startDate", {
+                        required: "Date is required",
                       })}
                       min={new Date().toISOString().split("T")[0]}
                       className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -434,7 +444,7 @@ const LeaveRequest = () => {
                 </div>
 
                 {/* End Date - Only for Full Day */}
-                {leaveType === 'full-day' && (
+                {leaveType === "full-day" && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       End Date *
@@ -443,16 +453,18 @@ const LeaveRequest = () => {
                       <CalendarIcon className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" />
                       <input
                         type="date"
-                        {...register("endDate", { 
+                        {...register("endDate", {
                           required: "End date is required",
                           validate: (value) => {
                             if (startDate && value < startDate) {
                               return "End date must be after start date";
                             }
                             return true;
-                          }
+                          },
                         })}
-                        min={startDate || new Date().toISOString().split("T")[0]}
+                        min={
+                          startDate || new Date().toISOString().split("T")[0]
+                        }
                         className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
@@ -465,7 +477,7 @@ const LeaveRequest = () => {
                 )}
 
                 {/* Half Day Time Selection */}
-                {leaveType === 'half-day' && (
+                {leaveType === "half-day" && (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Half Day Session *
@@ -475,7 +487,9 @@ const LeaveRequest = () => {
                         <input
                           type="radio"
                           value="morning"
-                          {...register("halfDayTime", { required: "Please select morning or afternoon" })}
+                          {...register("halfDayTime", {
+                            required: "Please select morning or afternoon",
+                          })}
                           className="mr-2"
                         />
                         <span>Morning (9 AM - 1 PM)</span>
@@ -509,25 +523,37 @@ const LeaveRequest = () => {
                         </p>
                         <div className="mt-2 space-y-1 text-sm">
                           <p className="text-blue-700">
-                            <strong>Total Leave Days:</strong> {workingDays} {workingDays === 0.5 ? 'day (Half Day)' : workingDays === 1 ? 'day' : 'days'}
+                            <strong>Total Leave Days:</strong> {workingDays}{" "}
+                            {workingDays === 0.5
+                              ? "day (Half Day)"
+                              : workingDays === 1
+                                ? "day"
+                                : "days"}
                           </p>
                           <p className="text-xs text-blue-600">
                             Date: {formatDateForDisplay(startDate)}
-                            {leaveType === 'full-day' && endDate && ` - ${formatDateForDisplay(endDate)}`}
+                            {leaveType === "full-day" &&
+                              endDate &&
+                              ` - ${formatDateForDisplay(endDate)}`}
                           </p>
-                          {leaveType === 'half-day' && halfDayTime && (
+                          {leaveType === "half-day" && halfDayTime && (
                             <p className="text-xs text-blue-600">
-                              Session: {halfDayTime === 'morning' ? 'Morning (9 AM - 1 PM)' : 'Afternoon (2 PM - 6 PM)'}
+                              Session:{" "}
+                              {halfDayTime === "morning"
+                                ? "Morning (9 AM - 1 PM)"
+                                : "Afternoon (2 PM - 6 PM)"}
                             </p>
                           )}
                           {excludedDates.sundays > 0 && (
                             <p className="text-xs text-blue-600">
-                              Excluded: {excludedDates.sundays} Sunday{excludedDates.sundays !== 1 ? 's' : ''}
+                              Excluded: {excludedDates.sundays} Sunday
+                              {excludedDates.sundays !== 1 ? "s" : ""}
                             </p>
                           )}
                           {excludedDates.holidays > 0 && (
                             <p className="text-xs text-blue-600">
-                              Excluded: {excludedDates.holidays} Holiday{excludedDates.holidays !== 1 ? 's' : ''}
+                              Excluded: {excludedDates.holidays} Holiday
+                              {excludedDates.holidays !== 1 ? "s" : ""}
                             </p>
                           )}
                         </div>
@@ -610,9 +636,16 @@ const LeaveRequest = () => {
                       ? "opacity-50 cursor-not-allowed"
                       : "hover:opacity-90"
                   }`}
-                  style={{ background: uploading || workingDays === 0 ? "#6b7280" : "#020c4c" }}
+                  style={{
+                    background:
+                      uploading || workingDays === 0 ? "#6b7280" : "#020c4c",
+                  }}
                 >
-                  {uploading ? "Submitting..." : workingDays === 0 ? "Select date" : "Submit Leave Request"}
+                  {uploading
+                    ? "Submitting..."
+                    : workingDays === 0
+                      ? "Select date"
+                      : "Submit Leave Request"}
                 </button>
               </form>
             </div>
@@ -686,8 +719,8 @@ const LeaveRequest = () => {
                             </span>
                           </div>
                           <p className="text-xs font-medium">
-                            {leave.startDate && leave.endDate 
-                              ? `${new Date(leave.startDate).toLocaleDateString()}${leave.endDate > leave.startDate ? ` - ${new Date(leave.endDate).toLocaleDateString()}` : ''}`
+                            {leave.startDate && leave.endDate
+                              ? `${new Date(leave.startDate).toLocaleDateString()}${leave.endDate > leave.startDate ? ` - ${new Date(leave.endDate).toLocaleDateString()}` : ""}`
                               : new Date(leave.date).toLocaleDateString()}
                           </p>
                           <p className="text-xs text-blue-600 mt-0.5 font-medium">
@@ -695,7 +728,12 @@ const LeaveRequest = () => {
                           </p>
                           {leave.leaveDays && (
                             <p className="text-xs text-gray-500 mt-0.5">
-                              {leave.leaveDays} {leave.leaveDays === 0.5 ? 'day (Half Day)' : leave.leaveDays === 1 ? 'day' : 'days'}
+                              {leave.leaveDays}{" "}
+                              {leave.leaveDays === 0.5
+                                ? "Day (Half Day)"
+                                : leave.leaveDays === 1
+                                  ? "Day"
+                                  : "Days"}
                             </p>
                           )}
                           <p className="text-xs text-gray-600 mt-1 line-clamp-2">

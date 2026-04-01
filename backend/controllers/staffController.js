@@ -478,7 +478,7 @@ const requestLeave = async (req, res) => {
       emailScreenshot: cloudinaryResult.path,
       cloudinaryPublicId: cloudinaryResult.filename,
       status: "pending",
-      leaveDays: parseInt(leaveDays),
+      leaveDays: parseFloat(leaveDays),
     };
 
     // Add conditional fields

@@ -31,14 +31,15 @@ const leaveSchema = new mongoose.Schema({
   },
   endDate: {
     type: Date,
-    required: function() {
-      return this.leaveType === 'full-day';
-    }
+    required: function () {
+      return this.leaveType === "full-day";
+    },
   },
   leaveDays: {
     type: Number,
     required: true,
     default: 1,
+    min: 0.5,
   },
   reason: {
     type: String,
