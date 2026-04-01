@@ -549,7 +549,7 @@ const getDashboardStats = async (req, res) => {
     console.log("Dashboard Stats:", {
       totalStaff,
       punchedInToday,
-      currentlyWorking, // Should be 3
+      currentlyWorking, 
       pendingLeaves,
     });
 
@@ -557,6 +557,7 @@ const getDashboardStats = async (req, res) => {
       totalStaff,
       presentToday: punchedInToday,
       activeNow: currentlyWorking,
+      pendingLeaves,
       leaveStats,
       recentActivity,
     });
