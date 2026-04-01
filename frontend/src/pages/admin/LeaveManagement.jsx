@@ -102,6 +102,13 @@ const LeaveManagement = () => {
     }
   };
 
+  const getLeaveTypeDisplay = (leave) => {
+    if (leave.leaveType === "half-day") {
+      return `${leave.halfDayTime === "morning" ? "Morning" : "Afternoon"} Half Day`;
+    }
+    return "Full Day";
+  };
+
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
     toast.success("Leave ID copied to clipboard!");
@@ -338,6 +345,9 @@ const LeaveManagement = () => {
                     Date Range
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                     Days
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
@@ -404,6 +414,17 @@ const LeaveManagement = () => {
                         ) : (
                           new Date(leave.date).toLocaleDateString()
                         )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`text-xs px-2 py-1 rounded-full ${
+                            leave.leaveType === "half-day"
+                              ? "bg-purple-100 text-purple-700"
+                              : "bg-blue-100 text-blue-700"
+                          }`}
+                        >
+                          {getLeaveTypeDisplay(leave)}
+                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span

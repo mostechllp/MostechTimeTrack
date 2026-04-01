@@ -122,14 +122,18 @@ const punchOut = async (req, res) => {
     if (day === 6) {
       // Saturday: 4 hours is full day, anything above is overtime
       if (totalWorkedHours > 4) {
-        attendance.overtimeHours = parseFloat((totalWorkedHours - 4).toFixed(2));
+        attendance.overtimeHours = parseFloat(
+          (totalWorkedHours - 4).toFixed(2),
+        );
       } else {
         attendance.overtimeHours = 0;
       }
     } else {
       // Sunday & Weekdays: 9 hours is full day
       if (totalWorkedHours > 9) {
-        attendance.overtimeHours = parseFloat((totalWorkedHours - 9).toFixed(2));
+        attendance.overtimeHours = parseFloat(
+          (totalWorkedHours - 9).toFixed(2),
+        );
       } else {
         attendance.overtimeHours = 0;
       }
@@ -421,7 +425,15 @@ const getTodayAttendance = async (req, res) => {
 // @route   POST /api/staff/leave
 const requestLeave = async (req, res) => {
   try {
-    const { startDate, endDate, reason, leaveId, leaveDays } = req.body;
+    const {
+      startDate,
+      endDate,
+      reason,
+      leaveId,
+      leaveDays,
+      leaveType,
+      halfDayTime,
+    } = req.body;
 
     // Check if leaveId already exists
     const existingLeave = await Leave.findOne({ leaveId });
@@ -435,29 +447,49 @@ const requestLeave = async (req, res) => {
       return res.status(400).json({ message: "Email screenshot is required" });
     }
 
-    // Validate dates
+    // Validate based on leave type
     const start = new Date(startDate);
-    const end = new Date(endDate);
 
-    if (start > end) {
-      return res
-        .status(400)
-        .json({ message: "End date must be after start date" });
+    if (leaveType === "half-day") {
+      // For half-day, only start date is needed
+      if (!halfDayTime) {
+        return res
+          .status(400)
+          .json({ message: "Please specify morning or afternoon" });
+      }
+    } else {
+      // For full-day, validate end date
+      const end = new Date(endDate);
+      if (start > end) {
+        return res
+          .status(400)
+          .json({ message: "End date must be after start date" });
+      }
     }
 
     const cloudinaryResult = req.file;
 
-    const leave = new Leave({
+    const leaveData = {
       userId: req.user._id,
       leaveId,
+      leaveType,
       startDate: start,
-      endDate: end,
-      leaveDays: parseInt(leaveDays),
       reason,
       emailScreenshot: cloudinaryResult.path,
       cloudinaryPublicId: cloudinaryResult.filename,
       status: "pending",
-    });
+      leaveDays: parseInt(leaveDays),
+    };
+
+    // Add conditional fields
+    if (leaveType === "full-day") {
+      leaveData.endDate = new Date(endDate);
+    } else {
+      leaveData.halfDayTime = halfDayTime;
+      leaveData.endDate = start; // For half-day, end date same as start
+    }
+
+    const leave = new Leave(leaveData);
 
     await leave.save();
     await leave.populate("userId", "email firstName lastName");
