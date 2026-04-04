@@ -26,6 +26,7 @@ const StaffDailyReports = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedReport, setSelectedReport] = useState(null);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [filterType, setFilterType] = useState("all");
   const [dateRange, setDateRange] = useState({
     startDate: new Date(new Date().setDate(1)).toISOString().split("T")[0],
@@ -73,6 +74,53 @@ const StaffDailyReports = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEditReport = (report) => {
+    setSelectedReport(report);
+    setIsEditing(true);
+    setShowReportModal(true);
+  };
+
+  const handleViewReport = (report) => {
+    setSelectedReport(report);
+    setIsEditing(false);
+    setShowReportModal(true);
+  };
+
+  const handleUpdateReport = async (reportData) => {
+    try {
+      const response = await axiosInstance.put(`/staff/reports/${selectedReport._id}`, reportData);
+      setShowReportModal(false);
+      setSelectedReport(null);
+      setIsEditing(false);
+      fetchReports();
+      return response.data;
+    } catch (error) {
+      console.error("Error updating report:", error);
+      toast.error(error.response?.data?.message || "Failed to update report");
+      throw error;
+    }
+  };
+
+  const handleAddRemark = async (remark) => {
+    try {
+      await axiosInstance.post(`/staff/reports/${selectedReport._id}/remark`, {
+        remark: remark,
+      });
+      fetchReports();
+      return true;
+    } catch (error) {
+      console.error("Error adding remark:", error);
+      toast.error(error.response?.data?.message || "Failed to add remark");
+      throw error;
+    }
+  };
+
+  const isTodayReport = (reportDate) => {
+    const today = new Date().toISOString().split("T")[0];
+    const reportDateStr = new Date(reportDate).toISOString().split("T")[0];
+    return today === reportDateStr;
   };
 
   const filteredReports = reports.filter((report) => {
@@ -200,25 +248,6 @@ const StaffDailyReports = () => {
     } catch (error) {
       console.error("PDF Error:", error);
       toast.error("Failed to generate PDF");
-    }
-  };
-
-  const viewReport = (report) => {
-    setSelectedReport(report);
-    setShowReportModal(true);
-  };
-
-  const handleAddRemark = async (remark) => {
-    try {
-      await axiosInstance.post(`/staff/reports/${selectedReport._id}/remark`, {
-        remark: remark,
-      });
-      fetchReports();
-      return true;
-    } catch (error) {
-      console.error("Error adding remark:", error);
-      toast.error(error.response?.data?.message || "Failed to add remark");
-      throw error;
     }
   };
 
@@ -481,95 +510,106 @@ const StaffDailyReports = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4">
-            {filteredReports.map((report) => (
-              <div
-                key={report._id}
-                className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 overflow-hidden flex flex-col h-full"
-              >
-                {/* Card Header */}
-                <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-2">
-                      <CalendarIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                      <div>
-                        <p className="font-semibold text-gray-900 text-sm">
-                          {formatDate(report.date)}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          {formatWeekday(report.date)}
-                        </p>
+            {filteredReports.map((report) => {
+              const isToday = isTodayReport(report.date);
+              return (
+                <div
+                  key={report._id}
+                  className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 overflow-hidden flex flex-col h-full"
+                >
+                  {/* Card Header */}
+                  <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center space-x-2">
+                        <CalendarIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                        <div>
+                          <p className="font-semibold text-gray-900 text-sm">
+                            {formatDate(report.date)}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {formatWeekday(report.date)}
+                          </p>
+                        </div>
                       </div>
+                      {isToday && (
+                        <button
+                          onClick={() => handleEditReport(report)}
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Edit Today's Report"
+                        >
+                          <PencilIcon className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                   </div>
-                </div>
 
-                {/* Card Body */}
-                <div className="p-4 flex-1">
-                  <div className="space-y-3">
-                    {/* Work Done Preview */}
-                    <div>
-                      <div className="flex items-center space-x-1 mb-1">
-                        {getStatusIcon(report.workDone)}
-                        <h4 className="text-xs font-semibold text-gray-700">
-                          Work Done
-                        </h4>
-                      </div>
-                      <p className="text-xs text-gray-600 line-clamp-2">
-                        {getPreviewText(report.workDone, 80)}
-                      </p>
-                    </div>
-
-                    {/* Accomplishments Preview */}
-                    <div>
-                      <div className="flex items-center space-x-1 mb-1">
-                        {getStatusIcon(report.accomplishments)}
-                        <h4 className="text-xs font-semibold text-gray-700">
-                          Accomplishments
-                        </h4>
-                      </div>
-                      <p className="text-xs text-gray-600 line-clamp-2">
-                        {getPreviewText(report.accomplishments, 80)}
-                      </p>
-                    </div>
-
-                    {/* Remarks Section - Display if exists */}
-                    {report.remarks && report.remarks.trim() && (
-                      <div className="mt-2 pt-2 border-t border-gray-100">
+                  {/* Card Body */}
+                  <div className="p-4 flex-1">
+                    <div className="space-y-3">
+                      {/* Work Done Preview */}
+                      <div>
                         <div className="flex items-center space-x-1 mb-1">
-                          <ChatAlt2Icon className="h-3 w-3 text-purple-500" />
-                          <h4 className="text-xs font-semibold text-purple-700">
-                            Remarks
+                          {getStatusIcon(report.workDone)}
+                          <h4 className="text-xs font-semibold text-gray-700">
+                            Work Done
                           </h4>
                         </div>
                         <p className="text-xs text-gray-600 line-clamp-2">
-                          {getPreviewText(report.remarks, 80)}
+                          {getPreviewText(report.workDone, 80)}
                         </p>
-                        {report.remarkAddedAt && (
-                          <p className="text-xs text-purple-500 mt-1 flex items-center space-x-1">
-                            <ClockIcon className="h-3 w-3" />
-                            <span>Last added: {formatRemarkDate(report.remarkAddedAt)}</span>
-                          </p>
-                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
 
-                {/* Card Footer */}
-                <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
+                      {/* Accomplishments Preview */}
+                      <div>
+                        <div className="flex items-center space-x-1 mb-1">
+                          {getStatusIcon(report.accomplishments)}
+                          <h4 className="text-xs font-semibold text-gray-700">
+                            Accomplishments
+                          </h4>
+                        </div>
+                        <p className="text-xs text-gray-600 line-clamp-2">
+                          {getPreviewText(report.accomplishments, 80)}
+                        </p>
+                      </div>
+
+                      {/* Remarks Section - Display if exists */}
+                      {report.remarks && report.remarks.trim() && (
+                        <div className="mt-2 pt-2 border-t border-gray-100">
+                          <div className="flex items-center space-x-1 mb-1">
+                            <ChatAlt2Icon className="h-3 w-3 text-purple-500" />
+                            <h4 className="text-xs font-semibold text-purple-700">
+                              Remarks
+                            </h4>
+                          </div>
+                          <p className="text-xs text-gray-600 line-clamp-2">
+                            {getPreviewText(report.remarks, 80)}
+                          </p>
+                          {report.remarkAddedAt && (
+                            <p className="text-xs text-purple-500 mt-1 flex items-center space-x-1">
+                              <ClockIcon className="h-3 w-3" />
+                              <span>Last added: {formatRemarkDate(report.remarkAddedAt)}</span>
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <button
-                      onClick={() => viewReport(report)}
-                      className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-                    >
-                      View Details →
-                    </button>
+                  </div>
+
+                  {/* Card Footer */}
+                  <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
+                    <div className="flex items-center justify-end">
+                      <button
+                        onClick={() => handleViewReport(report)}
+                        className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center space-x-1"
+                      >
+                        <EyeIcon className="h-3 w-3" />
+                        <span>View Details</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -579,11 +619,13 @@ const StaffDailyReports = () => {
         onClose={() => {
           setShowReportModal(false);
           setSelectedReport(null);
+          setIsEditing(false);
         }}
         date={selectedReport?.date}
         existingReport={selectedReport}
         onAddRemark={handleAddRemark}
-        onSubmit={() => {}}
+        onSubmit={isEditing ? handleUpdateReport : undefined}
+        isEditing={isEditing}
       />
     </div>
   );

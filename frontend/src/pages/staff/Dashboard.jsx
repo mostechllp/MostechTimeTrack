@@ -6,6 +6,7 @@ import {
   StopIcon,
   PauseIcon,
   RefreshIcon,
+  PencilIcon,
 } from "@heroicons/react/outline";
 import axiosInstance from "../../utils/axiosConfig";
 import ConfirmModal from "../../components/resuable/ConfirmModal";
@@ -141,6 +142,7 @@ const StaffDashboard = () => {
 
   const handlePunchIn = () => setShowPunchInConfirm(true);
   const handlePunchOut = () => setShowPunchOutConfirm(true);
+  const handleEditReport = () => setShowReportModal(true);
 
   const confirmPunchIn = async () => {
     try {
@@ -245,6 +247,11 @@ const StaffDashboard = () => {
     setHasSubmittedReport(true);
     return response.data;
   }, []);
+
+  // Check if report can be edited (only if punched out and report exists for today)
+  const canEditReport = attendanceData?.hasAttendance && 
+                        attendanceData.attendance?.punchOut && 
+                        existingReport !== null;
 
   if (loading) {
     return (
@@ -384,12 +391,25 @@ const StaffDashboard = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {/* Today's Work Card */}
             <div className="bg-white rounded-lg shadow-lg p-4 md:p-6">
-              <h3
-                className="text-base md:text-lg font-semibold mb-3 md:mb-4"
-                style={{ color: "#020c4c" }}
-              >
-                Today's Work
-              </h3>
+              <div className="flex justify-between items-center mb-3">
+                <h3
+                  className="text-base md:text-lg font-semibold"
+                  style={{ color: "#020c4c" }}
+                >
+                  Today's Work
+                </h3>
+                {/* Edit Report Button - Only show after punch out and report exists */}
+                {canEditReport && (
+                  <button
+                    onClick={handleEditReport}
+                    className="flex items-center space-x-1 px-2 py-1 text-xs text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition"
+                    title="Edit Today's Report"
+                  >
+                    <PencilIcon className="h-3 w-3" />
+                    <span>Edit Report</span>
+                  </button>
+                )}
+              </div>
               <div className="space-y-2">
                 {attendance.punchIn && (
                   <div className="flex justify-between text-xs md:text-sm">
@@ -524,7 +544,7 @@ const StaffDashboard = () => {
         )}
       </div>
 
-      <TaskManager/>
+      <TaskManager />
 
       <ConfirmModal
         isOpen={showPunchInConfirm}
@@ -547,6 +567,7 @@ const StaffDashboard = () => {
         date={new Date()}
         existingReport={existingReport}
         onSubmit={handleReportSubmit}
+        isEditing={true}
       />
     </div>
   );
