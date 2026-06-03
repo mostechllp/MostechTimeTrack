@@ -1,11 +1,10 @@
-/* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { Dialog } from '@headlessui/react';
 import { XIcon, PencilIcon, DocumentTextIcon, CheckCircleIcon, ExclamationIcon, CalendarIcon, ChatAlt2Icon } from '@heroicons/react/outline';
 import toast from 'react-hot-toast';
 import ConfirmModal from './ConfirmModal';
 
-// FormField component
+// FormField component (keep as is)
 const FormField = memo(({ label, name, value, onChange, rows, placeholder, required = false }) => {
   const handleChange = useCallback((e) => {
     onChange(e);
@@ -32,6 +31,7 @@ const FormField = memo(({ label, name, value, onChange, rows, placeholder, requi
 FormField.displayName = 'FormField';
 
 // ViewSection component
+// eslint-disable-next-line no-unused-vars
 const ViewSection = memo(({ icon: Icon, title, content }) => (
   <div className="rounded-lg p-4 transition-all">
     <div className="flex items-start space-x-3">
@@ -78,7 +78,7 @@ const ReportModal = ({
   const [showRemarkCancelConfirm, setShowRemarkCancelConfirm] = useState(false);
   const formRef = useRef(null);
 
-  // Memoized handlers
+  // Memoized handlers (keep as is)
   const handleWorkDoneChange = useCallback((e) => {
     setFormData(prev => ({ ...prev, workDone: e.target.value }));
   }, []);
@@ -99,16 +99,14 @@ const ReportModal = ({
     setRemarks(e.target.value);
   }, []);
 
-  // Check if form has any content (for new report only)
+  // Check if form has any content
   const hasUnsavedChanges = () => {
-    // For new report, check if any field has content
     if (!existingReport && !isEditingMode) {
       return formData.workDone.trim() !== '' || 
              formData.accomplishments.trim() !== '' || 
              formData.challenges.trim() !== '' || 
              formData.tomorrowPlan.trim() !== '';
     }
-    // For editing existing report, check if content changed from original
     if (existingReport && isEditingMode) {
       return formData.workDone !== (existingReport.workDone || '') ||
              formData.accomplishments !== (existingReport.accomplishments || '') ||
@@ -122,7 +120,7 @@ const ReportModal = ({
     return remarks.trim() !== '';
   };
 
-  // Handle close with confirmation
+  // Handle close with confirmation - THIS PREVENTS CLICKING OUTSIDE FROM CLOSING
   const handleCloseAttempt = () => {
     if (hasUnsavedChanges()) {
       setShowCancelConfirm(true);
@@ -133,7 +131,12 @@ const ReportModal = ({
     }
   };
 
-  // Initialize form when modal opens
+  // Handle cancel button click (same as close attempt)
+  const handleCancelClick = () => {
+    handleCloseAttempt();
+  };
+
+  // Initialize form when modal opens (keep as is)
   useEffect(() => {
     if (isOpen) {
       if (existingReport) {
@@ -177,10 +180,6 @@ const ReportModal = ({
       return;
     }
     setShowSubmitConfirm(true);
-  };
-
-  const handleCancelClick = () => {
-    handleCloseAttempt();
   };
 
   const handleSubmit = async () => {
@@ -227,23 +226,24 @@ const ReportModal = ({
     });
   };
 
-  // Determine if we're in view mode (past report, not editing)
   const isViewMode = existingReport && !isEditingMode && !onEdit && !isAddingRemark;
-
-  // Determine if this is a past report (can add remarks)
   const isPastReport = existingReport && !isEditingMode && !onEdit;
+  const isNewReport = !existingReport;
 
-  // Determine title based on mode
   const getTitle = () => {
     if (isAddingRemark) return 'Add Remark to Report';
     if (isViewMode) return 'Daily Report';
-    if (existingReport) return 'Edit Daily Report';
-    return 'Submit Daily Report';
+    if (isNewReport) return 'Submit Daily Report';
+    return 'Edit Daily Report';
   };
 
   return (
     <>
-      <Dialog open={isOpen} onClose={handleCloseAttempt} className="relative z-50">
+      <Dialog 
+        open={isOpen} 
+        onClose={handleCloseAttempt} 
+        className="relative z-50"
+      >
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true" />
         
         <div className="fixed inset-0 flex items-center justify-center p-4">
@@ -341,9 +341,8 @@ const ReportModal = ({
                   </div>
                 </div>
               ) : isViewMode ? (
-                /* View Mode - Display as styled cards with remarks at top */
+                /* View Mode - Display as styled cards */
                 <div className="space-y-4">
-                  {/* Remarks Section - Display first for past reports */}
                   {existingReport?.remarks && (
                     <div className="bg-blue-50 rounded-lg p-4 border border-blue-200 mb-4">
                       <div className="flex items-center space-x-2 mb-2">

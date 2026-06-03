@@ -248,10 +248,16 @@ const StaffDashboard = () => {
     return response.data;
   }, []);
 
+  const canAddReport =
+    attendanceData?.hasAttendance &&
+    attendanceData.attendance?.punchOut &&
+    existingReport === null;
+
   // Check if report can be edited (only if punched out and report exists for today)
-  const canEditReport = attendanceData?.hasAttendance && 
-                        attendanceData.attendance?.punchOut && 
-                        existingReport !== null;
+  const canEditReport =
+    attendanceData?.hasAttendance &&
+    attendanceData.attendance?.punchOut &&
+    existingReport !== null;
 
   if (loading) {
     return (
@@ -398,7 +404,18 @@ const StaffDashboard = () => {
                 >
                   Today's Work
                 </h3>
-                {/* Edit Report Button - Only show after punch out and report exists */}
+                {/* Add Report Button - Show after punch out when no report exists */}
+                {canAddReport && (
+                  <button
+                    onClick={() => setShowReportModal(true)}
+                    className="flex items-center space-x-1 px-2 py-1 text-xs text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition"
+                    title="Add Today's Report"
+                  >
+                    <PencilIcon className="h-3 w-3" />
+                    <span>Add Report</span>
+                  </button>
+                )}
+                {/* Edit Report Button - Show after punch out and report exists */}
                 {canEditReport && (
                   <button
                     onClick={handleEditReport}

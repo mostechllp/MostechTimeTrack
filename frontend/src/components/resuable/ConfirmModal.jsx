@@ -1,6 +1,15 @@
 import { Dialog } from '@headlessui/react';
 
-const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message }) => {
+const ConfirmModal = ({ 
+  isOpen, 
+  onClose, 
+  onConfirm, 
+  title, 
+  message,
+  confirmText = "Confirm",
+  cancelText = "Cancel",
+  confirmButtonColor = "#020c4c"
+}) => {
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-50">
       <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
@@ -18,17 +27,17 @@ const ConfirmModal = ({ isOpen, onClose, onConfirm, title, message }) => {
           <div className="flex justify-end space-x-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-gray-200 rounded-md"
+              className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300 transition"
             >
-              Cancel
+              {cancelText}
             </button>
 
             <button
               onClick={onConfirm}
-              className="px-4 py-2 text-white rounded-md"
-              style={{ background: '#020c4c' }}
+              className="px-4 py-2 text-white rounded-md hover:opacity-90 transition"
+              style={{ background: confirmButtonColor }}
             >
-              Confirm
+              {confirmText}
             </button>
           </div>
         </Dialog.Panel>

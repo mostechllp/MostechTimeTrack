@@ -19,6 +19,7 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 const allowedOrigins = [
   "http://localhost:5173",
+  "http://localhost:5174",
   "https://mostech-time-track-two.vercel.app",
   "https://mostech.ae",
   "https://mostech.ae/time-tracker",
