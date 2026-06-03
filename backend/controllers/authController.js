@@ -77,6 +77,7 @@ const changePassword = async (req, res) => {
 const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
+    console.log("Forget password controller hit")
     
     const user = await User.findOne({ email });
     if (!user) {

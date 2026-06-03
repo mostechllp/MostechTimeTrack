@@ -10,23 +10,29 @@ const ForgotPasswordModal = ({ isOpen, onClose }) => {
   const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!email.trim()) {
-      toast.error('Please enter your email address');
-      return;
-    }
+  e.preventDefault();
+  if (!email.trim()) {
+    toast.error('Please enter your email address');
+    return;
+  }
 
-    setLoading(true);
-    try {
-      await axiosInstance.post('/auth/forgot-password', { email });
-      setSubmitted(true);
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to send reset link');
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  setLoading(true);
+  try {
+    console.log('Sending request to:', `${axiosInstance.defaults.baseURL}/auth/forgot-password`);
+    console.log('With email:', email);
+    
+    const response = await axiosInstance.post('/auth/forgot-password', { email });
+    console.log('Response:', response);
+    setSubmitted(true);
+  } catch (error) {
+    console.error('Full error object:', error);
+    console.error('Error response:', error.response);
+    console.error('Error message:', error.message);
+    toast.error(error.response?.data?.message || 'Failed to send reset link');
+  } finally {
+    setLoading(false);
+  }
+};
   return (
     <Dialog open={isOpen} onClose={onClose} className="relative z-50">
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true" />
