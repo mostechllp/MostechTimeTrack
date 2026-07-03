@@ -1,8 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { DocumentTextIcon, EyeIcon, SearchIcon, FilterIcon, XIcon, CalendarIcon, UserIcon } from '@heroicons/react/outline';
-import axiosInstance from '../../utils/axiosConfig';
-import toast from 'react-hot-toast';
-import ReportModal from '../../components/resuable/ReportModal';
+import React, { useState, useEffect } from "react";
+import {
+  DocumentTextIcon,
+  EyeIcon,
+  SearchIcon,
+  FilterIcon,
+  XIcon,
+  CalendarIcon,
+  UserIcon,
+  DocumentDownloadIcon
+} from "@heroicons/react/outline";
+import axiosInstance from "../../utils/axiosConfig";
+import toast from "react-hot-toast";
+import ReportModal from "../../components/resuable/ReportModal";
 
 const StaffReports = () => {
   const [reports, setReports] = useState([]);
@@ -12,10 +21,11 @@ const StaffReports = () => {
   const [loading, setLoading] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [expandedReport, setExpandedReport] = useState(null);
+  const [generatingPDF, setGeneratingPDF] = useState(false);
   const [filters, setFilters] = useState({
-    userId: 'all',
-    startDate: new Date(new Date().setDate(1)).toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0]
+    userId: "all",
+    startDate: new Date(new Date().setDate(1)).toISOString().split("T")[0],
+    endDate: new Date().toISOString().split("T")[0],
   });
 
   useEffect(() => {
@@ -25,10 +35,10 @@ const StaffReports = () => {
 
   const fetchStaff = async () => {
     try {
-      const { data } = await axiosInstance.get('/admin/staff');
+      const { data } = await axiosInstance.get("/admin/staff");
       setStaff(data);
     } catch (error) {
-      console.error('Error fetching staff:', error);
+      console.error("Error fetching staff:", error);
     }
   };
 
@@ -40,16 +50,67 @@ const StaffReports = () => {
       setReports(data);
       setExpandedReport(null);
     } catch (error) {
-      console.error('Error fetching reports:', error);
-      toast.error('Failed to fetch reports');
+      console.error("Error fetching reports:", error);
+      toast.error("Failed to fetch reports");
     } finally {
       setLoading(false);
     }
   };
 
+  const generatePDF = async () => {
+    try {
+      setGeneratingPDF(true);
+
+      // Show loading toast
+      toast.loading("Generating PDF...", { id: "pdf-generating" });
+
+      const response = await axiosInstance.post(
+        "/admin/reports/generate-pdf",
+        filters,
+        {
+          responseType: "blob", // Important for binary data
+        },
+      );
+
+      // Create a blob from the response
+      const blob = new Blob([response.data], { type: "application/pdf" });
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+
+      // Generate filename with date range
+      const startDate = new Date(filters.startDate).toISOString().split("T")[0];
+      const endDate = new Date(filters.endDate).toISOString().split("T")[0];
+      link.setAttribute(
+        "download",
+        `staff_reports_${startDate}_to_${endDate}.pdf`,
+      );
+
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Cleanup
+      window.URL.revokeObjectURL(url);
+
+      // Success toast
+      toast.success("PDF downloaded successfully!", { id: "pdf-generating" });
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast.error(error.response?.data?.message || "Failed to generate PDF", {
+        id: "pdf-generating",
+      });
+    } finally {
+      setGeneratingPDF(false);
+    }
+  };
+
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
-    setFilters(prev => ({ ...prev, [name]: value }));
+    setFilters((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSearch = (e) => {
@@ -73,24 +134,24 @@ const StaffReports = () => {
 
   const clearFilters = () => {
     setFilters({
-      userId: 'all',
-      startDate: new Date(new Date().setDate(1)).toISOString().split('T')[0],
-      endDate: new Date().toISOString().split('T')[0]
+      userId: "all",
+      startDate: new Date(new Date().setDate(1)).toISOString().split("T")[0],
+      endDate: new Date().toISOString().split("T")[0],
     });
     setTimeout(() => fetchReports(), 100);
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
     });
   };
 
   const getStaffInitials = (firstName, lastName) => {
-    return `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`.toUpperCase();
+    return `${firstName?.charAt(0) || ""}${lastName?.charAt(0) || ""}`.toUpperCase();
   };
 
   return (
@@ -99,19 +160,48 @@ const StaffReports = () => {
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 sm:mb-8">
           <div className="flex items-center space-x-3">
-            <DocumentTextIcon className="h-6 w-6 sm:h-7 sm:w-7" style={{ color: '#020c4c' }} />
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold" style={{ color: '#020c4c' }}>
+            <DocumentTextIcon
+              className="h-6 w-6 sm:h-7 sm:w-7"
+              style={{ color: "#020c4c" }}
+            />
+            <h1
+              className="text-xl sm:text-2xl lg:text-3xl font-bold"
+              style={{ color: "#020c4c" }}
+            >
               Staff Daily Reports
             </h1>
           </div>
-          
+
           {/* Stats Badge */}
           {reports.length > 0 && (
             <div className="px-3 py-1.5 bg-white rounded-lg shadow-sm">
               <span className="text-sm text-gray-600">
-                Total Reports: <span className="font-semibold" style={{ color: '#020c4c' }}>{reports.length}</span>
+                Total Reports:{" "}
+                <span className="font-semibold" style={{ color: "#020c4c" }}>
+                  {reports.length}
+                </span>
               </span>
             </div>
+          )}
+          {/* Generate PDF Button */}
+          {reports.length > 0 && (
+            <button
+              onClick={generatePDF}
+              disabled={generatingPDF}
+              className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
+            >
+              {generatingPDF ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <span className="text-sm">Generating...</span>
+                </>
+              ) : (
+                <>
+                  <DocumentDownloadIcon className="h-5 w-5" />
+                  <span className="text-sm font-medium">Export PDF</span>
+                </>
+              )}
+            </button>
           )}
         </div>
 
@@ -122,8 +212,10 @@ const StaffReports = () => {
             className="w-full flex items-center justify-between px-4 py-3 bg-white rounded-xl shadow-md"
           >
             <div className="flex items-center space-x-2">
-              <FilterIcon className="h-5 w-5" style={{ color: '#020c4c' }} />
-              <span className="font-medium" style={{ color: '#020c4c' }}>Filter Reports</span>
+              <FilterIcon className="h-5 w-5" style={{ color: "#020c4c" }} />
+              <span className="font-medium" style={{ color: "#020c4c" }}>
+                Filter Reports
+              </span>
             </div>
             <div className="flex items-center space-x-2">
               <span className="text-xs text-gray-500">
@@ -139,7 +231,9 @@ const StaffReports = () => {
         </div>
 
         {/* Filters Section - Responsive */}
-        <div className={`${showFilters ? 'block' : 'hidden md:block'} mb-6 transition-all duration-300`}>
+        <div
+          className={`${showFilters ? "block" : "hidden md:block"} mb-6 transition-all duration-300`}
+        >
           <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
             <form onSubmit={handleSearch} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -155,7 +249,7 @@ const StaffReports = () => {
                     className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   >
                     <option value="all">All Staff</option>
-                    {staff.map(member => (
+                    {staff.map((member) => (
                       <option key={member._id} value={member._id}>
                         {member.firstName} {member.lastName}
                       </option>
@@ -196,9 +290,11 @@ const StaffReports = () => {
                     type="submit"
                     disabled={loading}
                     className={`flex-1 py-2 px-4 rounded-lg text-white font-medium transition-all ${
-                      loading ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'
+                      loading
+                        ? "opacity-50 cursor-not-allowed"
+                        : "hover:opacity-90"
                     }`}
-                    style={{ background: '#020c4c' }}
+                    style={{ background: "#020c4c" }}
                   >
                     {loading ? (
                       <div className="flex items-center justify-center">
@@ -212,10 +308,14 @@ const StaffReports = () => {
                       </div>
                     )}
                   </button>
-                  
-                  {(filters.userId !== 'all' || 
-                    filters.startDate !== new Date(new Date().setDate(1)).toISOString().split('T')[0] ||
-                    filters.endDate !== new Date().toISOString().split('T')[0]) && (
+
+                  {(filters.userId !== "all" ||
+                    filters.startDate !==
+                      new Date(new Date().setDate(1))
+                        .toISOString()
+                        .split("T")[0] ||
+                    filters.endDate !==
+                      new Date().toISOString().split("T")[0]) && (
                     <button
                       type="button"
                       onClick={clearFilters}
@@ -234,7 +334,10 @@ const StaffReports = () => {
         {/* Loading State */}
         {loading && (
           <div className="bg-white rounded-xl shadow-lg p-12 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto" style={{ borderColor: '#020c4c' }}></div>
+            <div
+              className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto"
+              style={{ borderColor: "#020c4c" }}
+            ></div>
             <p className="mt-4 text-gray-600">Loading reports...</p>
           </div>
         )}
@@ -245,7 +348,7 @@ const StaffReports = () => {
             <div className="hidden lg:block bg-white rounded-xl shadow-lg overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
-                  <thead style={{ background: '#020c4c' }}>
+                  <thead style={{ background: "#020c4c" }}>
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                         Staff
@@ -266,17 +369,24 @@ const StaffReports = () => {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {reports.map((report) => (
-                      <tr key={report._id} className="hover:bg-gray-50 transition-colors">
+                      <tr
+                        key={report._id}
+                        className="hover:bg-gray-50 transition-colors"
+                      >
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="flex-shrink-0 h-9 w-9 rounded-full bg-blue-100 flex items-center justify-center">
                               <span className="text-blue-600 text-xs font-medium">
-                                {getStaffInitials(report.userId?.firstName, report.userId?.lastName)}
+                                {getStaffInitials(
+                                  report.userId?.firstName,
+                                  report.userId?.lastName,
+                                )}
                               </span>
                             </div>
                             <div className="ml-3">
                               <div className="text-sm font-medium text-gray-900">
-                                {report.userId?.firstName} {report.userId?.lastName}
+                                {report.userId?.firstName}{" "}
+                                {report.userId?.lastName}
                               </div>
                               <div className="text-xs text-gray-500">
                                 {report.userId?.email}
@@ -288,13 +398,19 @@ const StaffReports = () => {
                           {formatDate(report.date)}
                         </td>
                         <td className="px-6 py-4">
-                          <p className="text-sm text-gray-900 line-clamp-2 max-w-xs" title={report.workDone}>
+                          <p
+                            className="text-sm text-gray-900 line-clamp-2 max-w-xs"
+                            title={report.workDone}
+                          >
                             {report.workDone}
                           </p>
                         </td>
                         <td className="px-6 py-4">
-                          <p className="text-sm text-gray-900 line-clamp-2 max-w-xs" title={report.accomplishments || 'N/A'}>
-                            {report.accomplishments || 'N/A'}
+                          <p
+                            className="text-sm text-gray-900 line-clamp-2 max-w-xs"
+                            title={report.accomplishments || "N/A"}
+                          >
+                            {report.accomplishments || "N/A"}
                           </p>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -316,14 +432,20 @@ const StaffReports = () => {
             {/* Tablet and Mobile Card View */}
             <div className="lg:hidden space-y-4">
               {reports.map((report) => (
-                <div key={report._id} className="bg-white rounded-xl shadow-lg overflow-hidden">
+                <div
+                  key={report._id}
+                  className="bg-white rounded-xl shadow-lg overflow-hidden"
+                >
                   <div className="p-4">
                     {/* Card Header */}
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center flex-1">
                         <div className="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
                           <span className="text-blue-600 font-medium">
-                            {getStaffInitials(report.userId?.firstName, report.userId?.lastName)}
+                            {getStaffInitials(
+                              report.userId?.firstName,
+                              report.userId?.lastName,
+                            )}
                           </span>
                         </div>
                         <div className="ml-3 flex-1">
@@ -352,19 +474,22 @@ const StaffReports = () => {
                           {formatDate(report.date)}
                         </span>
                       </div>
-                      
+
                       <div>
                         <p className="text-xs text-gray-500 mb-1">Work Done:</p>
                         <p className="text-sm text-gray-700">
-                          {report.workDone.length > 100 && expandedReport !== report._id 
-                            ? `${report.workDone.substring(0, 100)}...` 
+                          {report.workDone.length > 100 &&
+                          expandedReport !== report._id
+                            ? `${report.workDone.substring(0, 100)}...`
                             : report.workDone}
                           {report.workDone.length > 100 && (
                             <button
                               onClick={() => toggleReportExpand(report._id)}
                               className="text-blue-600 text-xs ml-1 font-medium"
                             >
-                              {expandedReport === report._id ? 'Show less' : 'Show more'}
+                              {expandedReport === report._id
+                                ? "Show less"
+                                : "Show more"}
                             </button>
                           )}
                         </p>
@@ -372,10 +497,13 @@ const StaffReports = () => {
 
                       {report.accomplishments && (
                         <div>
-                          <p className="text-xs text-gray-500 mb-1">Accomplishments:</p>
+                          <p className="text-xs text-gray-500 mb-1">
+                            Accomplishments:
+                          </p>
                           <p className="text-sm text-gray-700">
-                            {report.accomplishments.length > 100 && expandedReport !== report._id 
-                              ? `${report.accomplishments.substring(0, 100)}...` 
+                            {report.accomplishments.length > 100 &&
+                            expandedReport !== report._id
+                              ? `${report.accomplishments.substring(0, 100)}...`
                               : report.accomplishments}
                           </p>
                         </div>
@@ -392,17 +520,20 @@ const StaffReports = () => {
         {!loading && reports.length === 0 && (
           <div className="bg-white rounded-xl shadow-lg p-8 sm:p-12 text-center">
             <DocumentTextIcon className="h-12 w-12 sm:h-16 sm:w-16 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 text-sm sm:text-base">No reports found</p>
+            <p className="text-gray-500 text-sm sm:text-base">
+              No reports found
+            </p>
             <p className="text-xs text-gray-400 mt-2">
               Try adjusting your search filters or select a different date range
             </p>
-            {(filters.userId !== 'all' || 
-              filters.startDate !== new Date(new Date().setDate(1)).toISOString().split('T')[0] ||
-              filters.endDate !== new Date().toISOString().split('T')[0]) && (
+            {(filters.userId !== "all" ||
+              filters.startDate !==
+                new Date(new Date().setDate(1)).toISOString().split("T")[0] ||
+              filters.endDate !== new Date().toISOString().split("T")[0]) && (
               <button
                 onClick={clearFilters}
                 className="mt-4 px-4 py-2 text-sm text-white rounded-lg hover:opacity-90 transition-all"
-                style={{ background: '#020c4c' }}
+                style={{ background: "#020c4c" }}
               >
                 Clear Filters
               </button>
@@ -413,8 +544,8 @@ const StaffReports = () => {
         {/* Summary Footer */}
         {!loading && reports.length > 0 && (
           <div className="mt-4 text-center text-xs sm:text-sm text-gray-500">
-            Showing {reports.length} report{reports.length !== 1 ? 's' : ''}
-            {filters.userId !== 'all' && (
+            Showing {reports.length} report{reports.length !== 1 ? "s" : ""}
+            {filters.userId !== "all" && (
               <span className="ml-2 px-2 py-1 bg-gray-100 rounded-full text-xs">
                 Filtered by staff
               </span>
