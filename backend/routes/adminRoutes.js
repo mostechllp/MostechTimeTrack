@@ -18,7 +18,7 @@ const {
   restoreStaff,
   getCustomDateReport
 } = require('../controllers/adminController');
-const { getAllReports, getUserReports } = require('../controllers/reportController');
+const { getAllReports, getUserReports, generatePDFReport } = require('../controllers/reportController');
 
 router.use(protect);
 router.use(admin);
@@ -47,6 +47,7 @@ router.get('/leaves/pending-expiring', getPendingExpiringLeaves);
 
 router.get('/reports', getAllReports);
 router.get('/reports/live', getLiveAttendance);
+router.post('/reports/generate-pdf', generatePDFReport);
 router.get('/reports/user/:userId', getUserReports);
 
 module.exports = router;
