@@ -165,10 +165,68 @@ const getUserReports = async (req, res) => {
   }
 };
 
+// @desc    Generate PDF report
+// @route   POST /api/admin/reports/generate-pdf
+// @access  Private/Admin
+const generatePDFReport = async (req, res) => {
+  try {
+    const { startDate, endDate, userId } = req.body;
+    
+    // Validate dates
+    if (!startDate || !endDate) {
+      return res.status(400).json({ 
+        message: 'Start date and end date are required' 
+      });
+    }
+
+    // Build query
+    const query = {};
+    query.date = {
+      $gte: new Date(startDate),
+      $lte: new Date(endDate)
+    };
+
+    if (userId && userId !== 'all') {
+      query.userId = userId;
+    }
+
+    // Fetch reports with populated user data
+    const reports = await DailyReport.find(query)
+      .populate('userId', 'firstName lastName email')
+      .sort({ date: -1, 'userId.firstName': 1 });
+
+    if (!reports || reports.length === 0) {
+      return res.status(404).json({ 
+        message: 'No reports found for the selected date range' 
+      });
+    }
+
+    // Generate PDF
+    const pdfService = require('../services/pdfService');
+    const pdfBuffer = await pdfService.generateReportsPDF(reports, { 
+      startDate, 
+      endDate, 
+      userId 
+    });
+
+    // Set response headers
+    const fileName = `staff_reports_${startDate}_to_${endDate}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    res.status(500).json({ message: 'Failed to generate PDF' });
+  }
+};
+
 module.exports = {
   submitReport,
   getMyReports,
   updateReport,
   getAllReports,
-  getUserReports
+  getUserReports,
+  generatePDFReport
 };
